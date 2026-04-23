@@ -1,530 +1,271 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>LegalGuard AI — Audit Kontrak Premium</title>
+/* ═══════════════════════════════════════════════════════════
+   LegalGuard AI — PDF Report Generator v2.2 (FIXED)
+═══════════════════════════════════════════════════════════ */
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+function generateAuditPDF(data, contractText) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  const PAGE_W = 210;
+  const PAGE_H = 297;
+  const MARGIN = 18;
+  const COL_W = PAGE_W - (MARGIN * 2);
+  const FOOTER_H = 14;
+  const SAFE_BOTTOM = PAGE_H - MARGIN - FOOTER_H;
+  let y = 0;
+  let currentHeader = '';
 
-  <style>
-    /* ═══════════════════════════════════════════════════════════
-       LegalGuard AI — Premium Style System
-    ═══════════════════════════════════════════════════════════ */
-    :root {
-      --bg-base: #0F172A;
-      --bg-card: #1E293B;
-      --border: rgba(255,255,255,0.06);
-      --gold: #F59E0B;
-      --gold-dim: rgba(245,158,11,0.15);
-      --text-primary: #F1F5F9;
-      --text-muted: #94A3B8;
+  // ── COLOUR PALETTE ────────────────────────────────────
+  const C = {
+    bgDark:  [15, 23, 42],
+    bgCard:  [30, 41, 59],
+    gold:    [245, 158, 11],
+    goldDim: [90, 60, 8],
+    white:   [241, 245, 249],
+    muted:   [148, 163, 184],
+    dim:     [71, 85, 105],
+    red:     [248, 113, 113],
+    amber:   [251, 191, 36],
+    blue:    [96, 165, 250],
+    emerald: [52, 211, 153],
+    border:  [51, 65, 85],
+  };
+
+  // ── HELPERS ───────────────────────────────────────────
+  const setFill   = (rgb) => doc.setFillColor(...rgb);
+  const setTxt    = (rgb) => doc.setTextColor(...rgb);
+  const setFont   = (style, size) => {
+    doc.setFont('helvetica', style);
+    doc.setFontSize(size);
+  };
+
+  function wrap(text, maxWidth, fontSize) {
+    setFont('normal', fontSize);
+    return doc.splitTextToSize(String(text || ''), maxWidth);
+  }
+
+  // ── PAGE MANAGEMENT ───────────────────────────────────
+  function drawPageBg() {
+    setFill(C.bgDark);
+    doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
+    setFill(C.goldDim);
+    doc.rect(0, 0, 2.5, PAGE_H, 'F'); 
+  }
+
+  function drawPageHeader(title) {
+    setFill(C.bgCard);
+    doc.rect(0, 0, PAGE_W, 13, 'F');
+    setFill(C.gold);
+    doc.rect(0, 0, PAGE_W, 1, 'F');
+    setFont('bold', 7);
+    setTxt(C.gold);
+    doc.text('LEGALGUARD AI', MARGIN, 9);
+    setTxt(C.dim);
+    doc.text(title.toUpperCase(), PAGE_W / 2, 9, { align: 'center' });
+    const pg = doc.internal.getNumberOfPages();
+    doc.text(`Hal. ${pg}`, PAGE_W - MARGIN, 9, { align: 'right' });
+    y = 25; // Reset Y ke bawah header
+  }
+
+  function drawPageFooter() {
+    setFill(C.bgCard);
+    doc.rect(0, PAGE_H - FOOTER_H, PAGE_W, FOOTER_H, 'F');
+    setFont('normal', 6.5);
+    setTxt(C.dim);
+    doc.text('Laporan ini bersifat konfidensial dan dihasilkan oleh AI.', PAGE_W / 2, PAGE_H - 6, { align: 'center' });
+  }
+
+  function checkPage(needed = 20) {
+    if (y + needed > SAFE_BOTTOM) {
+      drawPageFooter();
+      doc.addPage();
+      drawPageBg();
+      drawPageHeader(currentHeader);
     }
+  }
 
-    * { box-sizing: border-box; margin: 0; }
-    html { scroll-behavior: smooth; }
-    body { background-color: var(--bg-base); font-family: 'DM Sans', sans-serif; color: var(--text-primary); line-height: 1.6; }
+  function drawSectionTitle(title, color) {
+    checkPage(18);
+    setFill(color.map(v => Math.round(v * 0.15)));
+    doc.roundedRect(MARGIN, y, COL_W, 10, 2, 2, 'F');
+    setFont('bold', 10);
+    setTxt(color);
+    doc.text(title, MARGIN + 4, y + 6.5);
+    y += 14;
+  }
 
-    .noise-overlay {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-      opacity: 0.03;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-    }
+  function drawIssueCard(item, idx, tagColor) {
+    const pasalLines = wrap(item.pasal || '—', COL_W - 50, 8);
+    const risikoLines = wrap(item.risiko || '—', COL_W - 12, 9);
+    const saranLines = wrap(item.saran || '—', COL_W - 16, 8);
 
-    .ambient-glow {
-      position: fixed;
-      border-radius: 50%;
-      pointer-events: none;
-      z-index: 0;
-      filter: blur(120px);
-      opacity: 0.12;
-    }
-    .ambient-glow-1 { width: 600px; height: 600px; background: radial-gradient(circle, #F59E0B, transparent 70%); top: -200px; left: -200px; animation: drift1 20s ease-in-out infinite; }
-    .ambient-glow-2 { width: 500px; height: 500px; background: radial-gradient(circle, #3B82F6, transparent 70%); bottom: -100px; right: -100px; animation: drift2 25s ease-in-out infinite; }
-    @keyframes drift1 { 0%,100% { transform: translate(0,0); } 33% { transform: translate(60px,40px); } 66% { transform: translate(-30px,80px); } }
-    @keyframes drift2 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-60px,-40px); } }
+    const cardH = 20 + (risikoLines.length * 5) + (saranLines.length * 4.5);
+    checkPage(cardH + 10);
 
-    .navbar-glass { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); z-index: 100; }
-    .logo-shield { width: 32px; height: 32px; background: var(--gold-dim); border: 1px solid rgba(245,158,11,0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-    .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); border-radius: 99px; font-size: 11px; font-weight: 500; color: #34D399; }
-    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #34D399; animation: pulse-dot 2s ease-in-out infinite; }
-    @keyframes pulse-dot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.85); } }
+    setFill(C.bgCard);
+    doc.roundedRect(MARGIN, y, COL_W, cardH, 2, 2, 'F');
+    
+    // Tag Left
+    setFill(tagColor);
+    doc.rect(MARGIN, y, 1.5, cardH, 'F');
 
-    .premium-badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; background: var(--gold-dim); border: 1px solid rgba(245,158,11,0.25); border-radius: 99px; }
-    .stat-number { font-family: 'Playfair Display', serif; font-size: 1.75rem; font-weight: 700; color: var(--gold); }
-    .stat-label { font-size: 11px; color: #475569; letter-spacing: 0.06em; text-transform: uppercase; }
+    setTxt(C.dim);
+    setFont('bold', 7);
+    doc.text(`#${idx + 1}`, PAGE_W - MARGIN - 5, y + 6);
 
-    @keyframes fadeInUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
-    .hidden { display: none !important; }
-    section { position: relative; z-index: 1; }
+    // Pasal
+    setTxt(tagColor);
+    setFont('bold', 8);
+    doc.text(pasalLines[0], MARGIN + 6, y + 6);
+    
+    let iy = y + 12;
+    setFont('bold', 7);
+    setTxt(C.dim);
+    doc.text('RISIKO:', MARGIN + 6, iy);
+    iy += 5;
+    setFont('normal', 9);
+    setTxt(C.white);
+    risikoLines.forEach(l => { doc.text(l, MARGIN + 6, iy); iy += 5; });
 
-    @media (max-width: 640px) {
-      .stat-number { font-size: 1.35rem; }
-      h1.font-display { font-size: 2.5rem !important; }
-    }
-  </style>
-</head>
+    iy += 2;
+    setFont('bold', 7);
+    setTxt(C.emerald);
+    doc.text('SARAN PERBAIKAN:', MARGIN + 6, iy);
+    iy += 5;
+    setFont('normal', 8);
+    setTxt(C.muted);
+    saranLines.forEach(l => { doc.text(l, MARGIN + 6, iy); iy += 4.5; });
 
-<body class="bg-slate-950 text-slate-200 font-sans antialiased overflow-x-hidden">
+    y += cardH + 6;
+  }
 
-  <div class="noise-overlay fixed inset-0 pointer-events-none opacity-20 z-[1]"></div>
-  <div class="ambient-glow ambient-glow-1"></div>
-  <div class="ambient-glow ambient-glow-2"></div>
+  // ── PROCESS DOCUMENT ──────────────────────────────────
+  
+  // 1. COVER PAGE
+  drawPageBg();
+  y = 60;
+  setFont('bold', 28);
+  setTxt(C.gold);
+  doc.text('LegalGuard AI', PAGE_W / 2, y, { align: 'center' });
+  y += 10;
+  setFont('normal', 12);
+  setTxt(C.muted);
+  doc.text('LAPORAN AUDIT KONTRAK BISNIS', PAGE_W / 2, y, { align: 'center' });
 
-  <!-- Admin Panel -->
-  <div id="adminPanel" class="hidden fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl overflow-y-auto">
-    <div class="max-w-4xl mx-auto p-6 pt-24">
-      <div class="flex justify-between items-center mb-8">
-        <h2 class="font-display text-3xl font-bold text-amber-500">Admin Panel</h2>
-        <button onclick="closeAdminPanel()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
-      </div>
-      <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 mb-8">
-        <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="users" class="w-4 h-4 text-amber-500"></i> Daftar Pembeli</h3>
-        <div class="flex gap-4 mb-6 flex-wrap">
-          <input type="text" id="adminBuyerName" placeholder="Nama Pembeli" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-amber-500 outline-none">
-          <input type="text" id="adminAccessCode" placeholder="Kode Akses (opsional)" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-amber-500 outline-none">
-          <button onclick="generateAndAddBuyer()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 px-6 py-3 rounded-xl font-bold">Tambah +</button>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="border-b border-slate-800"><tr class="text-left text-slate-500"><th class="pb-3">Nama</th><th class="pb-3">Kode Akses</th><th class="pb-3">Link Khusus</th><th class="pb-3">Status</th><th class="pb-3">Aksi</th></tr></thead>
-            <tbody id="adminBuyersList"></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
-        <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="settings" class="w-4 h-4 text-amber-500"></i> Pengaturan Global</h3>
-        <button onclick="exportAllData()" class="bg-emerald-500/20 border border-emerald-500/30 text-emerald-500 px-4 py-2 rounded-xl text-sm mr-3"><i data-lucide="download" class="w-4 h-4 inline mr-2"></i> Export Semua Data</button>
-        <button onclick="clearAllBuyers()" class="bg-red-500/20 border border-red-500/30 text-red-500 px-4 py-2 rounded-xl text-sm"><i data-lucide="trash-2" class="w-4 h-4 inline mr-2"></i> Hapus Semua</button>
-      </div>
-    </div>
-  </div>
+  // Score Circle
+  y += 25;
+  const sColor = data.score >= 75 ? C.emerald : (data.score >= 50 ? C.amber : C.red);
+  setFill(C.bgCard);
+  doc.circle(PAGE_W / 2, y, 20, 'F');
+  setFont('bold', 20);
+  setTxt(sColor);
+  doc.text(String(data.score), PAGE_W / 2, y + 2, { align: 'center' });
+  setFont('normal', 7);
+  setTxt(C.dim);
+  doc.text('SCORE', PAGE_W / 2, y + 9, { align: 'center' });
 
-  <nav class="fixed top-0 left-0 right-0 z-[100] navbar-glass border-b border-slate-800/50">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="logo-shield bg-amber-500/10 p-2 rounded-lg border border-amber-500/20"><i data-lucide="shield-check" class="w-5 h-5 text-amber-500"></i></div>
-        <span class="font-display font-bold text-base sm:text-lg tracking-tight">Legal<span class="text-amber-500">Guard</span> <span class="text-slate-500 text-xs sm:text-sm font-sans font-light tracking-widest ml-1">AI</span></span>
-      </div>
-      <div class="flex items-center gap-2">
-        <span class="status-badge"><span class="status-dot w-1.5 h-1.5 sm:w-2 sm:h-2"></span><span class="hidden sm:inline">Sistem Aktif</span></span>
-        <button onclick="openApiKeyModal()" title="API Key" class="relative p-1.5 rounded-lg hover:bg-slate-800 text-slate-500 hover:text-amber-500 transition-colors" id="navApiKeyBtn">
-          <i data-lucide="key" class="w-4 h-4 sm:w-5 sm:h-5"></i>
-          <span id="navApiKeyDot" class="hidden absolute top-0.5 right-0.5 w-2 h-2 bg-emerald-500 rounded-full border border-slate-900"></span>
-        </button>
-        <button id="adminToggleBtn" onclick="toggleAdminPanel()" class="text-slate-500 hover:text-amber-500 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"><i data-lucide="settings" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>
-      </div>
-    </div>
-  </nav>
+  // Verdict banner
+  y += 30;
+  const verdictText =
+    data.score >= 75 ? 'RISIKO RENDAH — Aman untuk Ditandatangani' :
+    data.score >= 50 ? 'RISIKO SEDANG — Perlu Negosiasi Sebelum TTD' :
+                       'RISIKO TINGGI — JANGAN Ditandatangani';
+  setFill(sColor.map(v => Math.round(v * 0.12)));
+  doc.roundedRect(MARGIN + 20, y, COL_W - 40, 11, 2, 2, 'F');
+  setFont('bold', 8.5);
+  setTxt(sColor);
+  doc.text(verdictText, PAGE_W / 2, y + 7.5, { align: 'center' });
 
-  <!-- API Key Modal -->
-  <div id="apiKeyModal" class="hidden fixed inset-0 z-[200] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 sm:p-8">
-      <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-3">
-          <div class="p-2 bg-amber-500/10 rounded-lg border border-amber-500/20"><i data-lucide="key" class="w-4 h-4 text-amber-500"></i></div>
-          <div>
-            <h3 class="font-display text-lg font-bold">OpenRouter API Key</h3>
-            <p class="text-[10px] text-slate-500">Kunci untuk mengakses AI engine</p>
-          </div>
-        </div>
-        <button onclick="closeApiKeyModal()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
-      </div>
-      <div class="mb-2 flex items-center justify-between flex-wrap gap-2">
-        <span id="keySavedBadgeModal" class="hidden items-center gap-1 text-[10px] text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20"><i data-lucide="check" class="w-3 h-3"></i> Tersimpan</span>
-        <a href="https://openrouter.ai/keys" target="_blank" class="text-[10px] sm:text-xs text-amber-600 hover:text-amber-400 ml-auto flex items-center gap-1">Dapatkan Key <i data-lucide="external-link" class="w-3 h-3 inline"></i></a>
-      </div>
-      <div class="relative mb-3">
-        <textarea id="apiKeyInputModal" rows="3" placeholder="sk-or-v1-... (satu key per baris, tekan Enter untuk tambah key baru)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs sm:text-sm font-mono focus:border-amber-500 outline-none resize-none leading-relaxed" style="-webkit-text-security: disc; text-security: disc;" oninput="onApiKeyInputModal()"></textarea>
-        <button onclick="toggleApiKeyVisibilityModal()" class="absolute right-3 top-3 text-slate-500 hover:text-slate-300"><i data-lucide="eye" class="w-4 h-4"></i></button>
-      </div>
-      <div class="flex items-center justify-between mb-6">
-        <p class="text-[10px] text-slate-500"><i data-lucide="info" class="w-3 h-3 inline mr-1"></i> Beberapa key (1 per baris). Auto fallback jika gagal.</p>
-        <button id="clearApiKeyBtnModal" onclick="clearApiKeyModal()" class="hidden text-[10px] text-red-500 hover:text-red-400 flex items-center gap-1"><i data-lucide="trash-2" class="w-3 h-3"></i> Hapus</button>
-      </div>
-      <button onclick="saveApiKeyModal()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Simpan API Key</button>
-    </div>
-  </div>
+  // Stats row
+  y += 22;
+  const stats = [
+    { label: 'Fatal Red Flags', value: data.red_flags.length, color: C.red },
+    { label: 'Pasal Ambigu',    value: data.ambiguous.length, color: C.amber },
+    { label: 'Klausul Hilang',  value: data.missing.length,   color: C.blue },
+  ];
+  const statW = (COL_W - 14) / 3;
+  stats.forEach((s, i) => {
+    const bx = MARGIN + i * (statW + 7);
+    setFill(C.bgCard);
+    doc.roundedRect(bx, y, statW, 27, 3, 3, 'F');
+    setFont('bold', 18);
+    setTxt(s.color);
+    doc.text(String(s.value), bx + statW / 2, y + 14, { align: 'center' });
+    setFont('normal', 7);
+    setTxt(C.muted);
+    doc.text(s.label, bx + statW / 2, y + 22, { align: 'center' });
+  });
 
+  // Date/meta
+  y += 38;
+  const now = new Date();
+  setFont('normal', 8);
+  setTxt(C.dim);
+  doc.text('Tanggal Audit : ' + now.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }), PAGE_W / 2, y, { align: 'center' });
+  y += 6;
+  doc.text('Platform : LegalGuard AI  |  via OpenRouter', PAGE_W / 2, y, { align: 'center' });
 
-  <div id="accessModal" class="hidden fixed inset-0 z-[200] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-8 text-center">
-      <div class="mb-4"><i data-lucide="key" class="w-12 h-12 text-amber-500 mx-auto"></i></div>
-      <h3 class="font-display text-2xl font-bold mb-2">Masukkan Kode Akses</h3>
-      <p class="text-slate-500 text-sm mb-6">Silakan masukkan kode yang diberikan oleh admin</p>
-      <input type="text" id="accessCodeInput" placeholder="Kode Akses" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-center text-lg font-mono mb-4 focus:border-amber-500 outline-none">
-      <button onclick="verifyAccessCode()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 rounded-xl">Verifikasi Akses</button>
-      <p class="text-[10px] text-slate-600 mt-4">* Belum punya kode? Hubungi admin Anda</p>
-    </div>
-  </div>
+  // Cover footer
+  setFill(C.bgCard);
+  doc.rect(0, PAGE_H - 14, PAGE_W, 14, 'F');
+  setFont('normal', 6.5);
+  setTxt(C.dim);
+  doc.text('Disclaimer: Laporan ini dihasilkan AI. Bukan pengganti konsultasi hukum profesional.', PAGE_W / 2, PAGE_H - 6, { align: 'center' });
 
-  <section id="hero" class="min-h-screen relative z-10 flex flex-col items-center justify-center px-4 sm:px-6 pt-24 pb-16">
-    <div class="max-w-4xl mx-auto text-center">
-      <div class="inline-flex items-center gap-2 premium-badge mb-8"><i data-lucide="sparkles" class="w-3 h-3 text-amber-500"></i><span class="text-[10px] sm:text-xs font-semibold text-amber-400 tracking-widest uppercase">Didukung OpenRouter AI · Hukum Indonesia</span></div>
-      <h1 class="font-display text-4xl sm:text-5xl md:text-7xl font-bold leading-tight mb-6">Audit Kontrak<br/><span class="text-amber-500">Bisnis Anda</span><br/><span class="text-slate-400 font-normal italic text-3xl sm:text-4xl md:text-6xl">dalam 60 Detik</span></h1>
-      <p class="text-slate-400 text-base sm:text-lg md:text-xl font-light max-w-2xl mx-auto mb-12 leading-relaxed px-4">Teknologi AI Senior Legal Auditor mengidentifikasi <strong class="text-slate-200 font-medium">red flags, pasal ambigu,</strong> dan klausul yang hilang — berdasarkan Hukum Perdata & Bisnis Indonesia.</p>
-      <div class="flex flex-wrap items-center justify-center gap-6 sm:gap-8 mb-16">
-        <div class="stat-item text-center"><span class="stat-number text-xl sm:text-2xl">500+</span><span class="stat-label block text-[10px]">Kontrak Diaudit</span></div>
-        <div class="w-px h-6 bg-slate-800 hidden sm:block"></div>
-        <div class="stat-item text-center"><span class="stat-number text-xl sm:text-2xl">98%</span><span class="stat-label block text-[10px]">Akurasi Deteksi</span></div>
-        <div class="w-px h-6 bg-slate-800 hidden sm:block"></div>
-        <div class="stat-item text-center"><span class="stat-number text-xl sm:text-2xl">&lt;60s</span><span class="stat-label block text-[10px]">Waktu Analisis</span></div>
-      </div>
-      <button onclick="scrollToApp()" class="group bg-amber-500 hover:bg-amber-600 text-slate-950 px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold flex items-center gap-3 mx-auto transition-all"><i data-lucide="zap" class="w-4 h-4 sm:w-5 sm:h-5 fill-current"></i> Mulai Audit <i data-lucide="arrow-right" class="w-3 h-3 sm:w-4 sm:h-4 transition-transform group-hover:translate-x-1"></i></button>
-    </div>
-  </section>
+  // 2. ISSUES PAGE
+  doc.addPage();
+  drawPageBg();
+  currentHeader = 'Hasil Audit Kontrak';
+  drawPageHeader(currentHeader);
 
-  <section id="app" class="py-16 sm:py-20 px-4 sm:px-6 relative z-10">
-    <div class="max-w-4xl mx-auto">
-      <div class="flex items-center gap-4 mb-10"><div class="flex-1 h-px bg-slate-800"></div><span class="text-[10px] sm:text-xs tracking-widest uppercase text-amber-500 font-bold">Audit Engine</span><div class="flex-1 h-px bg-slate-800"></div></div>
+  drawSectionTitle('FATAL RED FLAGS', C.red);
+  if (data.red_flags.length === 0) {
+    checkPage(10);
+    setTxt(C.muted); setFont('normal', 9);
+    doc.text('Tidak ditemukan risiko fatal.', MARGIN + 5, y);
+    y += 12;
+  } else {
+    data.red_flags.forEach((it, i) => drawIssueCard(it, i, C.red));
+  }
 
-      <div class="bg-slate-900/50 border border-slate-800 p-4 sm:p-6 rounded-2xl mb-6 hidden" id="apiKeySection">
-        <div class="flex flex-wrap items-center gap-3 mb-4"><i data-lucide="key" class="w-4 h-4 text-amber-500"></i><label class="text-sm font-semibold text-slate-300">OpenRouter API Key</label><span id="keySavedBadge" class="hidden items-center gap-1 text-[10px] text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full"><i data-lucide="check" class="w-3 h-3"></i> Tersimpan</span><a href="https://openrouter.ai/keys" target="_blank" class="text-[10px] sm:text-xs text-amber-600 hover:text-amber-400 ml-auto">Dapatkan Key <i data-lucide="external-link" class="w-3 h-3 inline"></i></a></div>
-        <div class="relative">
-          <textarea id="apiKeyInput" rows="3" placeholder="sk-or-v1-... (satu key per baris, tekan Enter untuk tambah key baru)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-mono focus:border-amber-500 outline-none resize-none leading-relaxed" style="-webkit-text-security: disc; text-security: disc;" oninput="onApiKeyInput()"></textarea>
-          <button onclick="toggleApiKeyVisibility()" class="absolute right-3 top-3 text-slate-500"><i data-lucide="eye" class="w-4 h-4"></i></button>
-        </div>
-        <div class="flex items-center justify-between mt-2">
-          <p class="text-[10px] text-slate-500"><i data-lucide="info" class="w-3 h-3 inline mr-1"></i> Masukkan beberapa key (1 per baris). Sistem otomatis fallback ke key berikutnya jika gagal.</p>
-          <button id="clearApiKeyBtn" onclick="clearApiKey()" class="hidden text-[10px] text-red-500 hover:text-red-400 flex items-center gap-1"><i data-lucide="trash-2" class="w-3 h-3"></i> Hapus</button>
-        </div>
-      </div>
+  y += 4;
+  drawSectionTitle('PASAL AMBIGU', C.amber);
+  if (data.ambiguous.length === 0) {
+    checkPage(10);
+    setTxt(C.muted); setFont('normal', 9);
+    doc.text('Tidak ditemukan pasal ambigu.', MARGIN + 5, y);
+    y += 12;
+  } else {
+    data.ambiguous.forEach((it, i) => drawIssueCard(it, i, C.amber));
+  }
 
-      <!-- Model input hidden — auto smart selection -->
-      <input type="hidden" id="modelInput" value="">
+  y += 4;
+  drawSectionTitle('KLAUSUL YANG HILANG', C.blue);
+  if (data.missing.length === 0) {
+    checkPage(10);
+    setTxt(C.muted); setFont('normal', 9);
+    doc.text('Tidak ada klausul penting yang hilang.', MARGIN + 5, y);
+    y += 12;
+  } else {
+    data.missing.forEach((it, i) => drawIssueCard(it, i, C.blue));
+  }
 
-      <div class="bg-slate-900/50 border border-slate-800 p-4 sm:p-6 rounded-2xl mb-6">
-        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <div class="flex items-center gap-3"><i data-lucide="file-text" class="w-4 h-4 text-amber-500"></i><span class="text-sm font-semibold text-slate-300">Teks Kontrak</span></div>
-          <div class="flex gap-2"><button onclick="clearInput()" class="text-[10px] sm:text-xs text-slate-500 hover:text-red-400 flex items-center gap-1"><i data-lucide="trash" class="w-3 h-3"></i> Hapus</button><button onclick="loadSample()" class="text-[10px] sm:text-xs text-amber-600 hover:text-amber-400 flex items-center gap-1"><i data-lucide="copy" class="w-3 h-3"></i> Contoh</button></div>
-        </div>
-        <textarea id="contractInput" placeholder="Tempel teks kontrak bisnis di sini..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 sm:px-4 py-3 sm:py-4 text-sm min-h-[200px] sm:min-h-[250px] focus:border-amber-500 outline-none"></textarea>
-        <div class="flex items-center justify-between mt-4"><span id="charCount" class="text-[9px] sm:text-[10px] font-mono text-slate-500">0 KARAKTER</span><span class="text-[9px] sm:text-[10px] text-slate-600">Min. 100 karakter</span></div>
+  // 3. NEGOTIATION SCRIPT
+  doc.addPage();
+  drawPageBg();
+  currentHeader = 'Script Negosiasi';
+  drawPageHeader(currentHeader);
+  drawSectionTitle('REKOMENDASI NEGOSIASI', C.emerald);
 
-        <!-- Upload File Section -->
-        <div class="mt-4 border-t border-slate-800 pt-4">
-          <p class="text-[10px] sm:text-xs text-slate-500 mb-3 flex items-center gap-1.5"><i data-lucide="upload" class="w-3 h-3"></i> Atau upload file kontrak (teks akan otomatis terisi)</p>
-          <label id="uploadLabel" for="contractFileInput" class="flex flex-col items-center justify-center gap-2 w-full border-2 border-dashed border-slate-700 hover:border-amber-500/50 rounded-xl px-4 py-5 cursor-pointer transition-colors bg-slate-950/50 hover:bg-amber-500/5 group">
-            <i data-lucide="file-up" class="w-6 h-6 text-slate-600 group-hover:text-amber-500 transition-colors"></i>
-            <span class="text-[10px] sm:text-xs text-slate-500 group-hover:text-slate-400 text-center">Klik untuk upload atau seret file ke sini<br/><span class="text-[9px] text-slate-600">Format: .docx, .pdf · Maks 10MB</span></span>
-          </label>
-          <input type="file" id="contractFileInput" accept=".docx,.pdf" class="hidden" onchange="handleContractFile(event)">
-          <div id="fileUploadStatus" class="hidden mt-3 flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5">
-            <i data-lucide="file-check" class="w-4 h-4 text-emerald-500 flex-shrink-0"></i>
-            <span id="fileUploadName" class="text-[10px] sm:text-xs text-slate-300 flex-1 truncate"></span>
-            <button onclick="clearUploadedFile()" class="text-slate-600 hover:text-red-400 transition-colors flex-shrink-0"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
-          </div>
-          <div id="fileUploadLoading" class="hidden mt-3 flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5">
-            <div class="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
-            <span class="text-[10px] sm:text-xs text-slate-400">Membaca file...</span>
-          </div>
-        </div>
-      </div>
+  const scriptLines = wrap(data.negotiation_script, COL_W - 10, 9);
+  setFont('normal', 9);
+  setTxt(C.muted);
+  scriptLines.forEach(l => {
+    checkPage(6);
+    doc.text(l, MARGIN + 5, y);
+    y += 5.5;
+  });
 
-      <button id="analyzeBtn" onclick="analyzeContract()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 sm:py-4 rounded-xl flex items-center justify-center gap-3 shadow-lg shadow-amber-500/10 transition-all text-sm sm:text-base"><i data-lucide="shield" class="w-4 h-4 sm:w-5 sm:h-5"></i> Analisis Kontrak Sekarang</button>
-    </div>
-  </section>
-
-  <section id="loadingSection" class="hidden py-16 sm:py-20 px-4 sm:px-6 relative z-10">
-    <div class="max-w-xl mx-auto text-center bg-slate-900/80 border border-slate-800 p-6 sm:p-12 rounded-3xl">
-      <div class="relative w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-6 sm:mb-8"><div class="absolute inset-0 border-4 border-amber-500/20 rounded-full"></div><div class="absolute inset-0 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div><div class="absolute inset-0 flex items-center justify-center"><i data-lucide="brain" class="w-6 h-6 sm:w-8 sm:h-8 text-amber-500"></i></div></div>
-      <h3 class="font-display text-xl sm:text-2xl font-bold mb-2">Sedang Menganalisis…</h3>
-      <p id="loadingStep" class="text-slate-500 text-xs sm:text-sm mb-6 sm:mb-8 animate-pulse">Menghubungkan ke Legal Engine...</p>
-      <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden"><div id="progressBar" class="w-0 h-full bg-amber-500 transition-all duration-300"></div></div>
-      <div id="progressPercent" class="text-[9px] sm:text-[10px] font-mono text-slate-600 mt-2">0%</div>
-    </div>
-  </section>
-
-  <section id="resultsSection" class="hidden py-16 sm:py-20 px-4 sm:px-6 relative z-10">
-    <div class="max-w-6xl mx-auto">
-      <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 sm:mb-12 gap-4 sm:gap-6">
-        <div><h2 class="font-display text-3xl sm:text-4xl font-bold mb-2">Hasil Audit</h2><p class="text-slate-500 text-xs sm:text-sm">Laporan dihasilkan otomatis berdasarkan AI.</p></div>
-        <div class="flex gap-3 flex-wrap"><button onclick="resetApp()" class="px-3 sm:px-5 py-2 rounded-xl border border-slate-800 hover:bg-slate-900 text-xs sm:text-sm flex items-center gap-2"><i data-lucide="refresh-cw" class="w-3 h-3 sm:w-4 sm:h-4"></i> Audit Baru</button><button onclick="exportPDF()" class="px-3 sm:px-5 py-2 rounded-xl bg-white text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-2 hover:bg-slate-200"><i data-lucide="download" class="w-3 h-3 sm:w-4 sm:h-4"></i> Export PDF</button><button onclick="exportDOCX()" class="px-3 sm:px-5 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-2 hover:bg-emerald-400"><i data-lucide="file-text" class="w-3 h-3 sm:w-4 sm:h-4"></i> Export DOCX</button></div>
-      </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8 sm:mb-12">
-        <div class="lg:col-span-1 bg-slate-900/50 border border-slate-800 p-6 sm:p-8 rounded-3xl text-center">
-          <p class="text-[8px] sm:text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-6">Security Score</p>
-          <div class="relative w-32 h-20 sm:w-40 sm:h-24 mx-auto mb-4"><svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 60"><path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#1e293b" stroke-width="8" stroke-linecap="round"/><path id="gaugeFill" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#f59e0b" stroke-width="8" stroke-linecap="round" stroke-dasharray="126" stroke-dashoffset="126"/></svg><div class="absolute inset-0 flex items-center justify-center pt-4"><span id="gaugeScore" class="font-display text-3xl sm:text-4xl font-bold">0</span></div></div>
-          <div id="scoreLabel" class="text-[8px] sm:text-[10px] font-bold px-2 sm:px-3 py-1 rounded-full uppercase tracking-widest bg-slate-800">Calculating...</div>
-        </div>
-        <div class="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <div class="bg-red-500/5 border border-red-500/10 p-4 sm:p-6 rounded-2xl text-center"><i data-lucide="alert-triangle" class="w-5 h-5 sm:w-6 sm:h-6 text-red-500 mb-2 sm:mb-3 mx-auto"></i><span id="countRedFlags" class="text-2xl sm:text-3xl font-bold text-red-500 block">0</span><span class="text-[8px] sm:text-[10px] text-slate-500 uppercase font-bold tracking-widest">Red Flags</span></div>
-          <div class="bg-amber-500/5 border border-amber-500/10 p-4 sm:p-6 rounded-2xl text-center"><i data-lucide="help-circle" class="w-5 h-5 sm:w-6 sm:h-6 text-amber-500 mb-2 sm:mb-3 mx-auto"></i><span id="countAmbiguous" class="text-2xl sm:text-3xl font-bold text-amber-500 block">0</span><span class="text-[8px] sm:text-[10px] text-slate-500 uppercase font-bold tracking-widest">Pasal Ambigu</span></div>
-          <div class="bg-blue-500/5 border border-blue-500/10 p-4 sm:p-6 rounded-2xl text-center"><i data-lucide="file-minus" class="w-5 h-5 sm:w-6 sm:h-6 text-blue-500 mb-2 sm:mb-3 mx-auto"></i><span id="countMissing" class="text-2xl sm:text-3xl font-bold text-blue-500 block">0</span><span class="text-[8px] sm:text-[10px] text-slate-500 uppercase font-bold tracking-widest">Klausul Hilang</span></div>
-          <div class="sm:col-span-3 bg-slate-900/50 border border-slate-800 p-3 sm:p-5 rounded-2xl flex items-center gap-3 sm:gap-4"><div id="verdictIcon" class="p-2 sm:p-3 bg-slate-800 rounded-xl"><i data-lucide="info" class="w-4 h-4 sm:w-5 sm:h-5"></i></div><p id="verdictText" class="text-[11px] sm:text-xs text-slate-400 font-medium">Lakukan analisis untuk melihat rekomendasi.</p></div>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 mb-8 sm:mb-12">
-        <div><h4 class="flex items-center gap-2 text-red-500 font-bold text-xs sm:text-sm uppercase tracking-widest mb-3 sm:mb-4"><i data-lucide="shield-alert" class="w-3 h-3 sm:w-4 sm:h-4"></i> Red Flags <span id="rfBadge" class="bg-red-500 text-white text-[8px] sm:text-[9px] px-1.5 py-0.5 rounded ml-auto">0</span></h4><div id="redFlagsContainer" class="space-y-3 sm:space-y-4"></div></div>
-        <div><h4 class="flex items-center gap-2 text-amber-500 font-bold text-xs sm:text-sm uppercase tracking-widest mb-3 sm:mb-4"><i data-lucide="help-circle" class="w-3 h-3 sm:w-4 sm:h-4"></i> Pasal Ambigu <span id="ambBadge" class="bg-amber-500 text-white text-[8px] sm:text-[9px] px-1.5 py-0.5 rounded ml-auto">0</span></h4><div id="ambiguousContainer" class="space-y-3 sm:space-y-4"></div></div>
-        <div><h4 class="flex items-center gap-2 text-blue-500 font-bold text-xs sm:text-sm uppercase tracking-widest mb-3 sm:mb-4"><i data-lucide="file-warning" class="w-3 h-3 sm:w-4 sm:h-4"></i> Klausul Hilang <span id="misBadge" class="bg-blue-500 text-white text-[8px] sm:text-[9px] px-1.5 py-0.5 rounded ml-auto">0</span></h4><div id="missingContainer" class="space-y-3 sm:space-y-4"></div></div>
-      </div>
-
-      <div class="bg-emerald-500/5 border border-emerald-500/10 p-6 sm:p-8 rounded-3xl mb-6 sm:mb-8">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-6"><div class="flex items-center gap-3"><i data-lucide="file-check" class="w-5 h-5 text-emerald-500"></i><h3 class="font-display text-lg sm:text-xl font-bold">Kontrak yang Sudah Diperbaiki</h3></div><button onclick="copyFixedContract()" class="text-xs bg-emerald-500 text-slate-950 font-bold px-3 sm:px-4 py-2 rounded-lg hover:bg-emerald-400 flex items-center gap-2"><i data-lucide="copy" class="w-3 h-3"></i> Salin</button></div>
-        <div id="fixedContract" class="text-xs sm:text-sm text-slate-400 bg-slate-950/50 p-4 sm:p-6 rounded-2xl border border-slate-800 font-mono leading-relaxed max-h-[400px] overflow-y-auto whitespace-pre-wrap"></div>
-      </div>
-
-      <div class="bg-emerald-500/5 border border-emerald-500/10 p-6 sm:p-8 rounded-3xl">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-6"><div class="flex items-center gap-3"><i data-lucide="message-square" class="w-5 h-5 text-emerald-500"></i><h3 class="font-display text-lg sm:text-xl font-bold">Script Negosiasi</h3></div><button onclick="copyNegotiationScript()" class="text-xs bg-emerald-500 text-slate-950 font-bold px-3 sm:px-4 py-2 rounded-lg hover:bg-emerald-400 flex items-center gap-2"><i data-lucide="copy" class="w-3 h-3"></i> Salin</button></div>
-        <div id="negotiationScript" class="text-xs sm:text-sm text-slate-400 bg-slate-950/50 p-4 sm:p-6 rounded-2xl border border-slate-800 font-mono leading-relaxed max-h-[400px] overflow-y-auto"></div>
-      </div>
-    </div>
-  </section>
-
-  <footer class="border-t border-slate-900 py-8 sm:py-12 px-4 sm:px-6 text-center">
-    <div class="max-w-4xl mx-auto"><div class="flex items-center justify-center gap-2 mb-4"><div class="p-1.5 bg-slate-800 rounded"><i data-lucide="shield" class="w-3 h-3 sm:w-4 sm:h-4 text-amber-500"></i></div><span class="font-display font-bold text-xs sm:text-sm">LegalGuard AI</span></div><p class="text-[10px] sm:text-xs text-slate-600 mb-2">© 2026 LegalGuard AI Indonesia. Hak cipta dilindungi.</p><p class="text-[8px] sm:text-[10px] text-slate-700 max-w-lg mx-auto">Disclaimer: Analisis berbasis AI bukan pengganti nasihat hukum resmi.</p></div>
-  </footer>
-
-  <div id="toast" class="fixed bottom-4 sm:bottom-6 right-4 sm:right-6 z-[200] transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none"><div class="bg-slate-900 border border-slate-800 px-3 sm:px-5 py-2 sm:py-3 rounded-xl sm:rounded-2xl shadow-2xl flex items-center gap-2 sm:gap-3"><div id="toastIcon" class="text-amber-500 text-sm sm:text-base"></div><span id="toastMsg" class="text-[10px] sm:text-xs font-medium text-slate-200"></span></div></div>
-
-  <script src="pdf-generator.js"></script>
-  <script src="script.js"></script>
-  <script>
-    // PDF.js worker setup
-    if (typeof pdfjsLib !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      if (window.lucide) lucide.createIcons();
-      checkAccessFromURL();
-      syncApiKeyFromStorage();
-    });
-
-    // ─── API KEY MODAL ──────────────────────────────────────────
-    function openApiKeyModal() {
-      const modal = document.getElementById('apiKeyModal');
-      modal.classList.remove('hidden');
-      // Sync current value from hidden textarea to modal textarea
-      const existing = document.getElementById('apiKeyInput').value;
-      const modalInput = document.getElementById('apiKeyInputModal');
-      if (existing) modalInput.value = existing;
-      updateModalBadge();
-      if (window.lucide) lucide.createIcons();
-    }
-
-    function closeApiKeyModal() {
-      document.getElementById('apiKeyModal').classList.add('hidden');
-    }
-
-    function saveApiKeyModal() {
-      const modalVal = document.getElementById('apiKeyInputModal').value.trim();
-      // Sync back to hidden input (used by existing script.js logic)
-      document.getElementById('apiKeyInput').value = modalVal;
-      // Trigger existing onApiKeyInput logic if it exists
-      if (typeof onApiKeyInput === 'function') onApiKeyInput();
-      // Save to localStorage
-      if (modalVal) localStorage.setItem('legalguard_apikey', modalVal);
-      else localStorage.removeItem('legalguard_apikey');
-      updateModalBadge();
-      updateNavKeyDot();
-      closeApiKeyModal();
-      showToast('✓', 'API Key berhasil disimpan');
-    }
-
-    function onApiKeyInputModal() {
-      const val = document.getElementById('apiKeyInputModal').value.trim();
-      const clearBtn = document.getElementById('clearApiKeyBtnModal');
-      if (clearBtn) clearBtn.classList.toggle('hidden', !val);
-      updateModalBadge();
-    }
-
-    function clearApiKeyModal() {
-      document.getElementById('apiKeyInputModal').value = '';
-      document.getElementById('apiKeyInput').value = '';
-      localStorage.removeItem('legalguard_apikey');
-      updateModalBadge();
-      updateNavKeyDot();
-      const clearBtn = document.getElementById('clearApiKeyBtnModal');
-      if (clearBtn) clearBtn.classList.add('hidden');
-    }
-
-    function toggleApiKeyVisibilityModal() {
-      const ta = document.getElementById('apiKeyInputModal');
-      const isHidden = ta.style.webkitTextSecurity === 'disc';
-      ta.style.webkitTextSecurity = isHidden ? 'none' : 'disc';
-      ta.style.textSecurity = isHidden ? 'none' : 'disc';
-    }
-
-    function updateModalBadge() {
-      const val = document.getElementById('apiKeyInputModal').value.trim();
-      const badge = document.getElementById('keySavedBadgeModal');
-      if (badge) {
-        if (val) { badge.classList.remove('hidden'); badge.classList.add('flex'); }
-        else { badge.classList.add('hidden'); badge.classList.remove('flex'); }
-      }
-    }
-
-    function updateNavKeyDot() {
-      const key = localStorage.getItem('legalguard_apikey') || document.getElementById('apiKeyInput').value.trim();
-      const dot = document.getElementById('navApiKeyDot');
-      if (dot) {
-        if (key) { dot.classList.remove('hidden'); }
-        else { dot.classList.add('hidden'); }
-      }
-    }
-
-    function syncApiKeyFromStorage() {
-      const saved = localStorage.getItem('legalguard_apikey');
-      if (saved) {
-        document.getElementById('apiKeyInput').value = saved;
-        document.getElementById('apiKeyInputModal').value = saved;
-        if (typeof onApiKeyInput === 'function') onApiKeyInput();
-      }
-      updateNavKeyDot();
-    }
-
-    // Close modal on backdrop click
-    document.getElementById('apiKeyModal').addEventListener('click', function(e) {
-      if (e.target === this) closeApiKeyModal();
-    });
-
-    // ─── FILE UPLOAD ────────────────────────────────────────────
-    async function handleContractFile(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const maxSize = 10 * 1024 * 1024; // 10MB
-      if (file.size > maxSize) {
-        showToast('⚠', 'File terlalu besar. Maks 10MB.');
-        return;
-      }
-
-      const loading = document.getElementById('fileUploadLoading');
-      const status = document.getElementById('fileUploadStatus');
-      const label = document.getElementById('uploadLabel');
-
-      loading.classList.remove('hidden');
-      loading.classList.add('flex');
-      status.classList.add('hidden');
-
-      try {
-        let text = '';
-        if (file.name.endsWith('.docx')) {
-          text = await readDocx(file);
-        } else if (file.name.endsWith('.pdf')) {
-          text = await readPdf(file);
-        } else {
-          showToast('⚠', 'Format tidak didukung. Gunakan .docx atau .pdf');
-          loading.classList.add('hidden');
-          return;
-        }
-
-        if (!text || text.trim().length < 10) {
-          showToast('⚠', 'Tidak dapat membaca teks dari file ini.');
-          loading.classList.add('hidden');
-          return;
-        }
-
-        // Fill textarea
-        const ta = document.getElementById('contractInput');
-        ta.value = text.trim();
-        ta.dispatchEvent(new Event('input'));
-
-        // Update char count
-        const charCount = document.getElementById('charCount');
-        if (charCount) charCount.textContent = text.trim().length + ' KARAKTER';
-
-        // Show status
-        loading.classList.add('hidden');
-        loading.classList.remove('flex');
-        status.classList.remove('hidden');
-        status.classList.add('flex');
-        document.getElementById('fileUploadName').textContent = file.name;
-        label.classList.add('hidden');
-
-        showToast('✓', 'File berhasil dibaca');
-      } catch (err) {
-        console.error(err);
-        loading.classList.add('hidden');
-        loading.classList.remove('flex');
-        showToast('⚠', 'Gagal membaca file. Coba format lain.');
-      }
-
-      // Reset input so same file can be re-uploaded
-      event.target.value = '';
-    }
-
-    function clearUploadedFile() {
-      document.getElementById('fileUploadStatus').classList.add('hidden');
-      document.getElementById('fileUploadStatus').classList.remove('flex');
-      document.getElementById('uploadLabel').classList.remove('hidden');
-      document.getElementById('contractFileInput').value = '';
-      document.getElementById('contractInput').value = '';
-      const charCount = document.getElementById('charCount');
-      if (charCount) charCount.textContent = '0 KARAKTER';
-    }
-
-    async function readDocx(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          try {
-            const result = await mammoth.extractRawText({ arrayBuffer: e.target.result });
-            resolve(result.value);
-          } catch (err) { reject(err); }
-        };
-        reader.onerror = reject;
-        reader.readAsArrayBuffer(file);
-      });
-    }
-
-    async function readPdf(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          try {
-            const typedArray = new Uint8Array(e.target.result);
-            const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
-            let fullText = '';
-            for (let i = 1; i <= pdf.numPages; i++) {
-              const page = await pdf.getPage(i);
-              const content = await page.getTextContent();
-              const pageText = content.items.map(item => item.str).join(' ');
-              fullText += pageText + '\n';
-            }
-            resolve(fullText);
-          } catch (err) { reject(err); }
-        };
-        reader.onerror = reject;
-        reader.readAsArrayBuffer(file);
-      });
-    }
-
-    // Drag and drop support
-    const uploadLabel = document.getElementById('uploadLabel');
-    if (uploadLabel) {
-      uploadLabel.addEventListener('dragover', (e) => { e.preventDefault(); uploadLabel.classList.add('border-amber-500/70'); });
-      uploadLabel.addEventListener('dragleave', () => { uploadLabel.classList.remove('border-amber-500/70'); });
-      uploadLabel.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadLabel.classList.remove('border-amber-500/70');
-        const file = e.dataTransfer.files[0];
-        if (file) {
-          const input = document.getElementById('contractFileInput');
-          const dt = new DataTransfer();
-          dt.items.add(file);
-          input.files = dt.files;
-          handleContractFile({ target: input });
-        }
-      });
-    }
-  </script>
-</body>
-</html>
+  drawPageFooter();
+  doc.save(`Audit_LegalGuard_${new Date().getTime()}.pdf`);
+}
