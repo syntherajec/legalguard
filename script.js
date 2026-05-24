@@ -96,13 +96,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /* ══ BUYER MANAGEMENT ════════════════════════════════════════ */
 function initBuyers() {
-  let buyers = localStorage.getItem(LS_KEY_BUYERS);
-  if (!buyers) {
-    const def = [{ name: 'Demo User', accessCode: 'DEMO2024', createdAt: new Date().toISOString(), lastAccess: null }];
-    localStorage.setItem(LS_KEY_BUYERS, JSON.stringify(def));
-    return def;
+  let buyers = [];
+  try {
+    const raw = localStorage.getItem(LS_KEY_BUYERS);
+    buyers = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(buyers)) buyers = [];
+  } catch (_) { buyers = []; }
+  // Pastikan kode demo selalu ada
+  if (!buyers.find(b => b.accessCode === 'DEMO2024')) {
+    buyers.unshift({ name: 'Demo User', accessCode: 'DEMO2024', createdAt: new Date().toISOString(), lastAccess: null });
+    localStorage.setItem(LS_KEY_BUYERS, JSON.stringify(buyers));
   }
-  return JSON.parse(buyers);
+  return buyers;
 }
 
 function generateAccessCode() {
