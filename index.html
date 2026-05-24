@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>LegalGuard AI — Audit Kontrak Premium</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+
+  <style>
+    /* Pastikan hero & app tersembunyi sebelum JS berjalan */
+    #hero, #app, #loadingSection, #resultsSection { display: none; }
+  </style>
+</head>
+
+<body class="overflow-x-hidden">
+
+  <!-- ── Ambient background ─────────────────────────────── -->
+  <div class="noise-overlay"></div>
+  <div class="ambient-glow ambient-glow-1"></div>
+  <div class="ambient-glow ambient-glow-2"></div>
+
+  <!-- ══ HALAMAN LOGIN (default tampil pertama) ════════════ -->
+  <div id="accessModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4" style="background:var(--bg-base)">
+
+    <!-- Ambient di balik modal -->
+    <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 80% 60% at 50% 0%, rgba(201,168,76,0.07) 0%, transparent 70%)"></div>
+
+    <div class="relative w-full max-w-sm">
+
+      <!-- Logo -->
+      <div class="flex flex-col items-center mb-10">
+        <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(201,168,76,0.1);border:0.5px solid rgba(201,168,76,0.3)">
+          <i data-lucide="shield-check" class="w-7 h-7" style="color:var(--gold)"></i>
+        </div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="font-display text-2xl font-semibold" style="color:var(--platinum)">Legal<span style="color:var(--gold)">Guard</span></span>
+          <span class="text-xs font-light tracking-widest" style="color:var(--text-dim);font-family:'Inter',sans-serif">AI</span>
+        </div>
+        <p class="text-xs tracking-widest" style="color:var(--text-dim);letter-spacing:0.12em">PLATFORM AUDIT KONTRAK INDONESIA</p>
+      </div>
+
+      <!-- Card login -->
+      <div class="modal-box p-8">
+        <div class="mb-6 text-center">
+          <h3 class="font-display text-xl font-semibold mb-1" style="color:var(--platinum)">Masukkan Kode Akses</h3>
+          <p class="text-xs leading-relaxed" style="color:var(--text-dim)">Kode akses diberikan oleh tim LegalGuard saat pembelian</p>
+        </div>
+
+        <input
+          type="text"
+          id="accessCodeInput"
+          placeholder="XXXX-XXXX-XXXX"
+          class="access-input w-full px-4 py-3 mb-4"
+          onkeydown="if(event.key==='Enter') verifyAccessCode()"
+        />
+
+        <button onclick="verifyAccessCode()" class="btn-primary w-full py-3.5 text-sm mb-4">
+          <i data-lucide="shield-check" class="w-4 h-4"></i>
+          Verifikasi & Masuk
+        </button>
+
+        <p class="text-center text-[10px]" style="color:var(--text-dim)">
+          Belum punya kode akses? Hubungi tim kami untuk mendapatkan akses.
+        </p>
+      </div>
+
+      <!-- Footer login -->
+      <p class="text-center text-[9px] mt-6" style="color:rgba(232,228,220,0.1)">
+        © 2026 LegalGuard AI Indonesia · Analisis AI bukan pengganti nasihat hukum profesional
+      </p>
+    </div>
+  </div>
+
+  <!-- ══ ADMIN PANEL ════════════════════════════════════════ -->
+  <div id="adminPanel" class="hidden fixed inset-0 z-[300] overflow-y-auto" style="background:rgba(12,12,16,0.97);backdrop-filter:blur(20px)">
+    <div class="max-w-4xl mx-auto p-6 pt-20">
+      <div class="flex justify-between items-center mb-8">
+        <div class="flex items-center gap-3">
+          <div class="logo-shield"><i data-lucide="shield-check" class="w-4 h-4" style="color:var(--gold)"></i></div>
+          <h2 class="font-display text-2xl font-semibold" style="color:var(--gold)">Panel Admin</h2>
+        </div>
+        <button onclick="closeAdminPanel()" class="btn-secondary px-3 py-2 text-xs"><i data-lucide="x" class="w-4 h-4"></i> Tutup</button>
+      </div>
+
+      <div class="card-premium p-6 mb-6">
+        <h3 class="text-sm font-semibold mb-5 flex items-center gap-2" style="color:var(--text-primary)">
+          <i data-lucide="users" class="w-4 h-4" style="color:var(--gold)"></i> Manajemen Pembeli
+        </h3>
+        <div class="flex gap-3 mb-6 flex-wrap">
+          <input type="text" id="adminBuyerName" placeholder="Nama Pembeli / Perusahaan" class="admin-input flex-1 px-4 py-2.5 text-sm min-w-[180px]">
+          <input type="text" id="adminAccessCode" placeholder="Kode Akses (opsional)" class="admin-input flex-1 px-4 py-2.5 text-sm min-w-[180px]">
+          <button onclick="generateAndAddBuyer()" class="btn-primary px-5 py-2.5 text-sm">Tambah +</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr style="border-bottom:0.5px solid var(--border)">
+                <th class="pb-3 pr-4 text-left font-medium tracking-widest" style="color:var(--text-dim);font-size:9px">NAMA</th>
+                <th class="pb-3 pr-4 text-left font-medium tracking-widest" style="color:var(--text-dim);font-size:9px">KODE AKSES</th>
+                <th class="pb-3 pr-4 text-left font-medium tracking-widest" style="color:var(--text-dim);font-size:9px">LINK KHUSUS</th>
+                <th class="pb-3 pr-4 text-left font-medium tracking-widest" style="color:var(--text-dim);font-size:9px">TERAKHIR AKSES</th>
+                <th class="pb-3 text-left font-medium tracking-widest" style="color:var(--text-dim);font-size:9px">AKSI</th>
+              </tr>
+            </thead>
+            <tbody id="adminBuyersList"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card-premium p-6">
+        <h3 class="text-sm font-semibold mb-4 flex items-center gap-2" style="color:var(--text-primary)">
+          <i data-lucide="settings" class="w-4 h-4" style="color:var(--gold)"></i> Pengaturan Global
+        </h3>
+        <div class="flex gap-3 flex-wrap">
+          <button onclick="exportAllData()" class="btn-emerald"><i data-lucide="download" class="w-3.5 h-3.5"></i> Export Data</button>
+          <button onclick="clearAllBuyers()" style="background:rgba(224,85,85,0.08);border:0.5px solid rgba(224,85,85,0.2);color:var(--red);font-size:11px;padding:6px 14px;border-radius:8px;display:flex;align-items:center;gap:6px;cursor:pointer">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus Semua
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ NAVBAR (hidden sampai login) ══════════════════════ -->
+  <nav id="mainNav" class="hidden fixed top-0 left-0 right-0 z-[100] navbar-glass">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="logo-shield">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5" style="color:var(--gold)"></i>
+        </div>
+        <span class="font-display font-semibold text-base tracking-tight" style="color:var(--platinum)">
+          Legal<span style="color:var(--gold)">Guard</span>
+          <span style="color:var(--text-dim);font-size:11px;font-family:'Inter',sans-serif;font-weight:300;letter-spacing:0.12em"> AI</span>
+        </span>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="status-badge hidden sm:inline-flex">
+          <span class="status-dot"></span> Sistem Aktif
+        </div>
+        <button onclick="toggleAdminPanel()" class="btn-ghost p-1.5" style="opacity:0.35" title="Admin">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══ HERO ══════════════════════════════════════════════ -->
+  <section id="hero" class="min-h-screen relative z-10 flex flex-col items-center justify-center px-4 sm:px-6 pt-24 pb-16">
+    <div class="max-w-4xl mx-auto text-center">
+
+      <div class="inline-flex items-center gap-3 premium-badge mb-8">
+        <span class="eyebrow-line"></span>
+        <span style="font-size:9px;font-weight:500;color:var(--gold);letter-spacing:0.18em;text-transform:uppercase">Platform Audit Kontrak Bisnis Indonesia</span>
+        <span class="eyebrow-line"></span>
+      </div>
+
+      <h1 class="font-display font-semibold leading-tight mb-6" style="font-size:clamp(2.4rem,6vw,4.5rem);color:var(--platinum)">
+        Kontrak Anda Aman?<br/>
+        <span style="color:var(--gold)">Biarkan AI Kami</span><br/>
+        <span class="italic font-normal" style="font-size:clamp(1.8rem,4.5vw,3.5rem);color:var(--text-muted)">yang Memutuskan.</span>
+      </h1>
+
+      <p class="font-light max-w-2xl mx-auto mb-3 leading-relaxed px-4" style="font-size:clamp(13px,1.5vw,16px);color:var(--text-muted)">
+        Jutaan rupiah bisa hilang dari satu pasal yang keliru. LegalGuard AI menganalisis kontrak bisnis Anda secara mendalam — menemukan jebakan hukum sebelum Anda tandatangani.
+      </p>
+      <p class="flex items-center justify-center gap-2 mb-12 text-xs" style="color:rgba(224,85,85,0.65)">
+        <i data-lucide="alert-triangle" class="w-3.5 h-3.5 flex-shrink-0"></i>
+        73% kontrak bisnis UKM Indonesia mengandung minimal 1 pasal berisiko tinggi
+      </p>
+
+      <!-- Stats -->
+      <div class="flex flex-wrap items-center justify-center gap-8 sm:gap-14 mb-14">
+        <div class="stat-item">
+          <span class="stat-number">12.400+</span>
+          <span class="stat-label">Kontrak Dianalisis</span>
+        </div>
+        <div class="w-px h-8 hidden sm:block" style="background:var(--border)"></div>
+        <div class="stat-item">
+          <span class="stat-number">98.6%</span>
+          <span class="stat-label">Akurasi Deteksi</span>
+        </div>
+        <div class="w-px h-8 hidden sm:block" style="background:var(--border)"></div>
+        <div class="stat-item">
+          <span class="stat-number">&lt;60 dtk</span>
+          <span class="stat-label">Waktu Analisis</span>
+        </div>
+      </div>
+
+      <button onclick="scrollToApp()" class="btn-primary group px-8 py-4 text-sm mx-auto">
+        <i data-lucide="shield-check" class="w-4 h-4"></i>
+        Mulai Audit Kontrak
+        <i data-lucide="arrow-right" class="w-4 h-4 transition-transform group-hover:translate-x-1"></i>
+      </button>
+    </div>
+  </section>
+
+  <!-- ══ APP — INPUT ════════════════════════════════════════ -->
+  <section id="app" class="py-16 sm:py-20 px-4 sm:px-6 relative z-10">
+    <div class="max-w-3xl mx-auto">
+
+      <div class="section-divider mb-10">
+        <div class="section-divider-line"></div>
+        <span class="section-divider-text">Audit Engine</span>
+        <div class="section-divider-line"></div>
+      </div>
+
+      <!-- Konfigurasi engine (API key tersembunyi dari publik) -->
+      <input type="hidden" id="modelInput" value="">
+      <div class="card-premium p-5 mb-5">
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+          <i data-lucide="cpu" class="w-3.5 h-3.5" style="color:var(--gold)"></i>
+          <span class="text-xs font-medium" style="color:var(--text-muted)">Konfigurasi Engine</span>
+          <span id="keySavedBadge" class="hidden badge badge-emerald ml-auto">
+            <i data-lucide="check" class="w-2.5 h-2.5 inline mr-1"></i>Terkonfigurasi
+          </span>
+        </div>
+        <div class="relative">
+          <textarea
+            id="apiKeyInput"
+            rows="2"
+            placeholder="Masukkan konfigurasi engine (1 per baris)..."
+            class="input-premium w-full px-4 py-2.5 text-xs resize-none leading-relaxed"
+            style="-webkit-text-security:disc;text-security:disc;font-family:'JetBrains Mono',monospace"
+            oninput="onApiKeyInput()"
+          ></textarea>
+          <button onclick="toggleApiKeyVisibility()" class="absolute right-3 top-2.5 btn-ghost">
+            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+        <div class="flex items-center justify-between mt-2">
+          <p class="text-[10px]" style="color:var(--text-dim)">Konfigurasi disimpan lokal. Sistem otomatis memilih engine terbaik.</p>
+          <button id="clearApiKeyBtn" onclick="clearApiKey()" class="hidden btn-ghost danger text-[10px] ml-3">
+            <i data-lucide="trash-2" class="w-3 h-3"></i> Hapus
+          </button>
+        </div>
+      </div>
+
+      <!-- Input Kontrak -->
+      <div class="card-premium p-5 mb-5">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <i data-lucide="file-text" class="w-3.5 h-3.5" style="color:var(--gold)"></i>
+            <span class="text-xs font-medium tracking-widest" style="color:var(--text-muted);letter-spacing:0.1em">TEKS KONTRAK</span>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="clearInput()" class="btn-ghost danger text-[10px]">
+              <i data-lucide="trash" class="w-3 h-3"></i> Hapus
+            </button>
+            <button onclick="loadSample()" class="btn-ghost text-[10px]" style="color:var(--gold)">
+              <i data-lucide="copy" class="w-3 h-3"></i> Contoh
+            </button>
+          </div>
+        </div>
+
+        <!-- Upload Zone -->
+        <div
+          id="uploadZone"
+          class="upload-zone flex flex-wrap items-center justify-center gap-3 p-4 mb-4 cursor-pointer"
+          onclick="document.getElementById('fileUploadInput').click()"
+        >
+          <input type="file" id="fileUploadInput" accept=".pdf,.docx,.doc" class="hidden" onchange="handleFileUpload(event)">
+          <i data-lucide="upload-cloud" class="w-4 h-4" style="color:var(--gold)"></i>
+          <span class="text-xs" style="color:var(--text-dim)">Upload file kontrak Anda, atau drag & drop di sini</span>
+          <div class="flex gap-2">
+            <span class="badge badge-gold">PDF</span>
+            <span class="badge badge-gold">DOCX</span>
+          </div>
+        </div>
+
+        <!-- Upload status -->
+        <div id="uploadStatus" class="hidden flex items-center gap-2 text-xs mb-3" style="color:var(--emerald)">
+          <i data-lucide="check-circle" class="w-3.5 h-3.5 flex-shrink-0"></i>
+          <span id="uploadStatusText"></span>
+        </div>
+
+        <!-- Textarea -->
+        <textarea
+          id="contractInput"
+          placeholder="Atau tempel teks kontrak bisnis langsung di sini..."
+          class="textarea-contract w-full px-4 py-3 min-h-[220px] sm:min-h-[260px]"
+          oninput="updateCharCount()"
+        ></textarea>
+        <div class="flex items-center justify-between mt-3">
+          <span id="charCount" class="font-mono-custom text-[9px]" style="color:var(--text-dim)">0 KARAKTER</span>
+          <span class="text-[9px]" style="color:var(--text-dim)">Min. 100 karakter</span>
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <button id="analyzeBtn" onclick="analyzeContract()" class="btn-primary w-full py-4 text-sm">
+        <i data-lucide="shield-check" class="w-5 h-5"></i>
+        Analisis Kontrak Sekarang
+      </button>
+    </div>
+  </section>
+
+  <!-- ══ LOADING ════════════════════════════════════════════ -->
+  <section id="loadingSection" class="hidden py-16 sm:py-20 px-4 sm:px-6 relative z-10">
+    <div class="max-w-xl mx-auto">
+      <div class="card-premium p-8 sm:p-10">
+
+        <!-- Header loading -->
+        <div class="flex items-center gap-3 mb-1">
+          <div class="relative w-5 h-5 flex-shrink-0">
+            <div class="absolute inset-0 border-2 rounded-full animate-spin-slow" style="border-color:rgba(201,168,76,0.15);border-top-color:var(--gold)"></div>
+          </div>
+          <h3 class="font-display text-xl font-semibold" style="color:var(--platinum)">AI Legal Engine Bekerja</h3>
+        </div>
+        <p class="text-xs mb-8 ml-8" style="color:var(--text-dim)">Menganalisis kontrak Anda berdasarkan hukum Indonesia</p>
+
+        <!-- 5 Step indicators -->
+        <div class="space-y-2 mb-8">
+          <div class="loading-step step-idle" id="lstep0">
+            <div class="step-icon-wrap idle"><i data-lucide="circle" class="w-3 h-3" style="color:var(--text-dim)"></i></div>
+            <span class="text-xs flex-1" style="color:var(--text-dim)">Memindai struktur & jumlah pasal kontrak</span>
+            <span class="font-mono-custom text-[9px] ml-auto flex-shrink-0" style="color:var(--text-dim)" id="lstep0-time">—</span>
+          </div>
+          <div class="loading-step step-idle" id="lstep1">
+            <div class="step-icon-wrap idle"><i data-lucide="circle" class="w-3 h-3" style="color:var(--text-dim)"></i></div>
+            <span class="text-xs flex-1" style="color:var(--text-dim)">Mendeteksi klausul berisiko tinggi</span>
+            <span class="font-mono-custom text-[9px] ml-auto flex-shrink-0" style="color:var(--text-dim)" id="lstep1-time">—</span>
+          </div>
+          <div class="loading-step step-idle" id="lstep2">
+            <div class="step-icon-wrap idle"><i data-lucide="circle" class="w-3 h-3" style="color:var(--text-dim)"></i></div>
+            <span class="text-xs flex-1" style="color:var(--text-dim)">Menganalisis keseimbangan hak & kewajiban para pihak</span>
+            <span class="font-mono-custom text-[9px] ml-auto flex-shrink-0" style="color:var(--text-dim)" id="lstep2-time">—</span>
+          </div>
+          <div class="loading-step step-idle" id="lstep3">
+            <div class="step-icon-wrap idle"><i data-lucide="circle" class="w-3 h-3" style="color:var(--text-dim)"></i></div>
+            <span class="text-xs flex-1" style="color:var(--text-dim)">Menyusun rekomendasi hukum & revisi pasal</span>
+            <span class="font-mono-custom text-[9px] ml-auto flex-shrink-0" style="color:var(--text-dim)" id="lstep3-time">—</span>
+          </div>
+          <div class="loading-step step-idle" id="lstep4">
+            <div class="step-icon-wrap idle"><i data-lucide="circle" class="w-3 h-3" style="color:var(--text-dim)"></i></div>
+            <span class="text-xs flex-1" style="color:var(--text-dim)">Menyiapkan kontrak perbaikan & script negosiasi</span>
+            <span class="font-mono-custom text-[9px] ml-auto flex-shrink-0" style="color:var(--text-dim)" id="lstep4-time">—</span>
+          </div>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="rounded-xl p-4" style="background:var(--bg-inner);border:0.5px solid var(--border)">
+          <div class="flex justify-between mb-2">
+            <span class="text-[9px] font-medium tracking-widest" style="color:var(--text-dim)">PROGRES ANALISIS</span>
+            <span id="progressPercent" class="font-mono-custom text-[9px]" style="color:var(--gold)">0%</span>
+          </div>
+          <div class="breakdown-bar-bg">
+            <div id="progressBar" class="breakdown-bar-fill transition-all duration-300" style="width:0%;background:var(--gold)"></div>
+          </div>
+          <p id="loadingStep" class="text-[10px] mt-2" style="color:var(--text-dim)">Menginisialisasi Legal Engine...</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ RESULTS ════════════════════════════════════════════ -->
+  <section id="resultsSection" class="hidden py-14 px-4 sm:px-6 relative z-10">
+    <div class="max-w-6xl mx-auto">
+
+      <!-- Personal banner -->
+      <div class="personal-banner">
+        <i data-lucide="user-check" class="w-4 h-4 flex-shrink-0" style="color:rgba(201,168,76,0.55)"></i>
+        <div class="text-xs" style="color:var(--text-muted)">
+          Laporan audit untuk
+          <span id="buyerNameDisplay" class="font-medium" style="color:var(--gold)">Pengguna</span>
+          <span class="mx-2" style="color:var(--text-dim)">·</span>
+          <span id="auditDateDisplay" style="color:var(--text-dim)"></span>
+          <span class="mx-2" style="color:var(--text-dim)">·</span>
+          <span id="auditRefDisplay" class="font-mono-custom" style="color:var(--text-dim);font-size:10px"></span>
+        </div>
+      </div>
+
+      <!-- Header hasil -->
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+        <div>
+          <h2 class="font-display text-3xl sm:text-4xl font-semibold" style="color:var(--platinum)">Hasil Audit Kontrak</h2>
+          <p class="text-xs mt-1" id="auditSubtitle" style="color:var(--text-dim)">Laporan dihasilkan oleh AI Legal Engine</p>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="resetApp()" class="btn-secondary px-4 py-2 text-xs">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Audit Baru
+          </button>
+          <button onclick="exportPDF()" class="btn-secondary px-4 py-2 text-xs">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> PDF
+          </button>
+          <button onclick="exportDOCX()" class="btn-primary px-4 py-2 text-xs">
+            <i data-lucide="file-text" class="w-3.5 h-3.5"></i> Export DOCX
+          </button>
+        </div>
+      </div>
+
+      <!-- Score + Stats -->
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+
+        <!-- Score card -->
+        <div class="card-premium p-6 flex flex-col items-center text-center">
+          <p class="text-[9px] font-medium tracking-widest mb-4" style="color:var(--text-dim)">SECURITY SCORE</p>
+
+          <!-- Gauge SVG -->
+          <div class="relative mb-3">
+            <svg class="w-32 h-20 transform -rotate-90" viewBox="0 0 100 60">
+              <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="7" stroke-linecap="round"/>
+              <path id="gaugeFill" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="var(--gold)" stroke-width="7" stroke-linecap="round" stroke-dasharray="126" stroke-dashoffset="126"/>
+            </svg>
+            <div class="absolute inset-0 flex items-center justify-center" style="padding-top:8px">
+              <span id="gaugeScore" class="gauge-score-label" style="color:var(--gold)">0</span>
+            </div>
+          </div>
+
+          <div id="scoreLabel" class="badge badge-gold mb-4">Menghitung...</div>
+
+          <!-- Breakdown bars -->
+          <div class="w-full space-y-2">
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-[8px]" style="color:var(--text-dim)">Kelengkapan</span>
+                <span id="sb1" class="text-[8px] font-mono-custom" style="color:var(--text-muted)">—</span>
+              </div>
+              <div class="breakdown-bar-bg"><div id="sb1bar" class="breakdown-bar-fill" style="width:0%;background:var(--gold)"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-[8px]" style="color:var(--text-dim)">Keseimbangan</span>
+                <span id="sb2" class="text-[8px] font-mono-custom" style="color:var(--text-muted)">—</span>
+              </div>
+              <div class="breakdown-bar-bg"><div id="sb2bar" class="breakdown-bar-fill" style="width:0%;background:var(--red)"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-[8px]" style="color:var(--text-dim)">Kejelasan</span>
+                <span id="sb3" class="text-[8px] font-mono-custom" style="color:var(--text-muted)">—</span>
+              </div>
+              <div class="breakdown-bar-bg"><div id="sb3bar" class="breakdown-bar-fill" style="width:0%;background:var(--amber)"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-[8px]" style="color:var(--text-dim)">Perlindungan</span>
+                <span id="sb4" class="text-[8px] font-mono-custom" style="color:var(--text-muted)">—</span>
+              </div>
+              <div class="breakdown-bar-bg"><div id="sb4bar" class="breakdown-bar-fill" style="width:0%;background:var(--blue)"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats + Verdict -->
+        <div class="lg:col-span-3 flex flex-col gap-4">
+          <div class="grid grid-cols-3 gap-3">
+            <div class="card-premium p-4 sm:p-5 text-center">
+              <i data-lucide="alert-triangle" class="w-4 h-4 mx-auto mb-2" style="color:var(--red)"></i>
+              <span id="countRedFlags" class="block text-2xl sm:text-3xl font-semibold" style="color:var(--red)">0</span>
+              <span class="text-[8px] font-medium tracking-widest" style="color:var(--text-dim)">RED FLAGS</span>
+            </div>
+            <div class="card-premium p-4 sm:p-5 text-center">
+              <i data-lucide="help-circle" class="w-4 h-4 mx-auto mb-2" style="color:var(--amber)"></i>
+              <span id="countAmbiguous" class="block text-2xl sm:text-3xl font-semibold" style="color:var(--amber)">0</span>
+              <span class="text-[8px] font-medium tracking-widest" style="color:var(--text-dim)">PASAL AMBIGU</span>
+            </div>
+            <div class="card-premium p-4 sm:p-5 text-center">
+              <i data-lucide="file-minus" class="w-4 h-4 mx-auto mb-2" style="color:var(--blue)"></i>
+              <span id="countMissing" class="block text-2xl sm:text-3xl font-semibold" style="color:var(--blue)">0</span>
+              <span class="text-[8px] font-medium tracking-widest" style="color:var(--text-dim)">KLAUSUL HILANG</span>
+            </div>
+          </div>
+
+          <!-- Verdict bar -->
+          <div id="verdictBar" class="verdict-bar mid" style="flex:1;min-height:80px">
+            <div id="verdictIcon" class="flex-shrink-0 mt-0.5">
+              <i data-lucide="info" class="w-4 h-4" style="color:var(--amber)"></i>
+            </div>
+            <p id="verdictText" class="text-xs leading-relaxed" style="color:var(--text-muted)">
+              Lakukan analisis untuk melihat rekomendasi hukum.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Issue columns -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <i data-lucide="shield-alert" class="w-3.5 h-3.5" style="color:var(--red)"></i>
+            <h4 class="text-[10px] font-semibold tracking-widest" style="color:var(--red)">RED FLAGS</h4>
+            <span id="rfBadge" class="badge badge-red ml-auto">0</span>
+          </div>
+          <div id="redFlagsContainer" class="space-y-3"></div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <i data-lucide="help-circle" class="w-3.5 h-3.5" style="color:var(--amber)"></i>
+            <h4 class="text-[10px] font-semibold tracking-widest" style="color:var(--amber)">PASAL AMBIGU</h4>
+            <span id="ambBadge" class="badge badge-amber ml-auto">0</span>
+          </div>
+          <div id="ambiguousContainer" class="space-y-3"></div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <i data-lucide="file-warning" class="w-3.5 h-3.5" style="color:var(--blue)"></i>
+            <h4 class="text-[10px] font-semibold tracking-widest" style="color:var(--blue)">KLAUSUL HILANG</h4>
+            <span id="misBadge" class="badge badge-blue ml-auto">0</span>
+          </div>
+          <div id="missingContainer" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <!-- Fixed Contract -->
+      <div class="card-premium p-6 mb-4" style="border-color:rgba(46,189,133,0.12)">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+          <div class="flex items-center gap-3">
+            <i data-lucide="file-check" class="w-4 h-4" style="color:var(--emerald)"></i>
+            <div>
+              <h3 class="font-display text-lg font-semibold" style="color:var(--platinum)">Kontrak Telah Diperbaiki</h3>
+              <p class="text-[10px]" style="color:var(--text-dim)">Pasal lengkap · bahasa hukum profesional · siap digunakan</p>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="copyFixedContract()" class="btn-gold-outline">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin
+            </button>
+            <button onclick="downloadFixedContract()" class="btn-emerald">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i> Unduh DOCX
+            </button>
+          </div>
+        </div>
+        <div class="flex gap-2 mb-4 flex-wrap" id="fixedContractMeta"></div>
+        <div id="fixedContract" class="output-block"></div>
+      </div>
+
+      <!-- Negotiation Script -->
+      <div class="card-premium p-6" style="border-color:rgba(201,168,76,0.1)">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div class="flex items-center gap-3">
+            <i data-lucide="message-square" class="w-4 h-4" style="color:var(--gold)"></i>
+            <div>
+              <h3 class="font-display text-lg font-semibold" style="color:var(--platinum)">Script Negosiasi Profesional</h3>
+              <p class="text-[10px]" style="color:var(--text-dim)">Disesuaikan dengan temuan audit kontrak Anda</p>
+            </div>
+          </div>
+          <button onclick="copyNegotiationScript()" class="btn-gold-outline">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin
+          </button>
+        </div>
+        <div id="negotiationScript" class="output-block"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══ FOOTER ═════════════════════════════════════════════ -->
+  <footer id="mainFooter" class="hidden py-8 px-4 sm:px-6 text-center" style="border-top:0.5px solid var(--border)">
+    <div class="max-w-4xl mx-auto">
+      <div class="flex items-center justify-center gap-2 mb-3">
+        <div class="logo-shield w-6 h-6 rounded">
+          <i data-lucide="shield" class="w-3 h-3" style="color:var(--gold)"></i>
+        </div>
+        <span class="font-display font-semibold text-sm" style="color:var(--text-muted)">LegalGuard AI</span>
+      </div>
+      <p class="text-[9px] mb-1" style="color:var(--text-dim)">© 2026 LegalGuard AI Indonesia. Seluruh hak cipta dilindungi.</p>
+      <p class="text-[8px]" style="color:rgba(232,228,220,0.08)">Analisis berbasis AI bukan pengganti nasihat hukum dari profesional hukum yang kompeten.</p>
+    </div>
+  </footer>
+
+  <!-- ══ TOAST ══════════════════════════════════════════════ -->
+  <div id="toast" class="fixed bottom-5 right-5 z-[400] transform translate-y-16 opacity-0 transition-all duration-300 pointer-events-none">
+    <div class="toast-box px-4 py-3 flex items-center gap-3">
+      <span id="toastIcon" class="text-sm" style="color:var(--gold)"></span>
+      <span id="toastMsg" class="text-xs font-medium" style="color:var(--text-primary)"></span>
+    </div>
+  </div>
+
+  <script src="pdf-generator.js"></script>
+  <script src="script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) lucide.createIcons();
+      checkAccessFromURL();
+
+      // Drag & drop upload zone
+      const zone = document.getElementById('uploadZone');
+      if (zone) {
+        zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('dragover'); });
+        zone.addEventListener('dragleave', ()  => zone.classList.remove('dragover'));
+        zone.addEventListener('drop', e => {
+          e.preventDefault();
+          zone.classList.remove('dragover');
+          const file = e.dataTransfer.files[0];
+          if (file) processUploadedFile(file);
+        });
+      }
+    });
+  </script>
+</body>
+</html>
