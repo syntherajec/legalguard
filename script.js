@@ -237,6 +237,7 @@ function checkAccessFromURL() {
 
   // Mode admin — bypass login
   if (admin === 'true') {
+    initBuyers(); // pastikan default buyer ada
     showApp({ name: 'Admin', accessCode: 'admin' });
     const adminPanel = document.getElementById('adminPanel');
     if (adminPanel) adminPanel.classList.remove('hidden');
@@ -244,29 +245,30 @@ function checkAccessFromURL() {
     return;
   }
 
-  // Cek localStorage — validasi ketat
+  // Pastikan default buyer selalu ada
+  initBuyers();
+
+  // Cek sesi tersimpan
   const savedRaw = localStorage.getItem(LS_KEY_CURRENT_BUYER);
   if (savedRaw) {
     try {
       const buyer = JSON.parse(savedRaw);
-      // Pastikan data valid: punya name dan accessCode
       if (buyer && buyer.name && buyer.accessCode) {
-        // Verifikasi kode masih ada di daftar pembeli
-        const buyers = initBuyers();
-        const stillValid = buyers.find(b => b.accessCode === buyer.accessCode);
-        if (stillValid) { showApp(buyer); return; }
+        showApp(buyer);
+        return;
       }
     } catch (_) {}
-    // Data tidak valid — hapus dan tampilkan login
     localStorage.removeItem(LS_KEY_CURRENT_BUYER);
   }
 
-  // Login via URL ?code=xxx
+  // Login via URL ?code=xxx — isi input dan langsung verifikasi
   if (code) {
     const codeInput = document.getElementById('accessCodeInput');
-    if (codeInput) codeInput.value = code;
-    verifyAccessCode();
-    return;
+    if (codeInput) {
+      codeInput.value = code;
+      verifyAccessCode();
+      return;
+    }
   }
 
   // Default: tampilkan halaman login
