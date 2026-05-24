@@ -173,17 +173,28 @@ function exportAllData() {
 
 /* ══ ACCESS CONTROL ══════════════════════════════════════════ */
 
-// Satu fungsi terpusat: tampilkan semua elemen setelah login berhasil
+// Sembunyikan semua konten, pastikan login tampil
+function showLogin() {
+  const modal = document.getElementById('accessModal');
+  if (modal) { modal.style.cssText = 'display:flex!important'; }
+  ['mainNav','hero','app','loadingSection','resultsSection','mainFooter'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.cssText = 'display:none!important';
+  });
+}
+
+// Tampilkan semua konten, sembunyikan login
 function showApp(buyer) {
   currentBuyer = buyer;
-  // Sembunyikan halaman login
   const modal = document.getElementById('accessModal');
-  if (modal) modal.style.display = 'none';
-  // Tampilkan semua elemen utama
-  const ids = ['mainNav', 'hero', 'app', 'mainFooter'];
-  ids.forEach(id => {
+  if (modal) modal.style.cssText = 'display:none!important';
+  ['mainNav','hero','app','mainFooter'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) { el.style.display = ''; el.classList.remove('hidden'); }
+    if (el) { el.style.cssText = ''; el.classList.remove('hidden'); }
+  });
+  ['loadingSection','resultsSection'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.style.cssText = 'display:none!important'; el.classList.add('hidden'); }
   });
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -202,7 +213,6 @@ function verifyAccessCode() {
     showApp(buyer);
     showToast(`Selamat datang, ${buyer.name}!`, 'success');
   } else {
-    // Goyangkan input sebagai feedback error
     const input = document.getElementById('accessCodeInput');
     if (input) {
       input.style.borderColor = 'var(--red)';
@@ -217,35 +227,30 @@ function checkAccessFromURL() {
   const code  = urlParams.get('code');
   const admin = urlParams.get('admin');
 
-  // Mode admin
+  // Mode admin — bypass login
   if (admin === 'true') {
+    showApp({ name: 'Admin', accessCode: 'admin' });
     const adminPanel = document.getElementById('adminPanel');
     if (adminPanel) adminPanel.classList.remove('hidden');
-    // Tampilkan juga elemen utama untuk admin
-    const ids = ['mainNav', 'hero', 'app', 'mainFooter'];
-    ids.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) { el.style.display = ''; el.classList.remove('hidden'); }
-    });
-    // Sembunyikan modal login
-    const modal = document.getElementById('accessModal');
-    if (modal) modal.style.display = 'none';
     renderAdminBuyersList();
-    if (typeof lucide !== 'undefined') lucide.createIcons();
     return;
   }
 
-  // Sudah login sebelumnya (tersimpan di localStorage)
-  const savedBuyer = localStorage.getItem(LS_KEY_CURRENT_BUYER);
-  if (savedBuyer) {
+  // Cek localStorage — validasi ketat
+  const savedRaw = localStorage.getItem(LS_KEY_CURRENT_BUYER);
+  if (savedRaw) {
     try {
-      const buyer = JSON.parse(savedBuyer);
-      showApp(buyer);
-    } catch {
-      localStorage.removeItem(LS_KEY_CURRENT_BUYER);
-      // Tampilkan login
-    }
-    return;
+      const buyer = JSON.parse(savedRaw);
+      // Pastikan data valid: punya name dan accessCode
+      if (buyer && buyer.name && buyer.accessCode) {
+        // Verifikasi kode masih ada di daftar pembeli
+        const buyers = initBuyers();
+        const stillValid = buyers.find(b => b.accessCode === buyer.accessCode);
+        if (stillValid) { showApp(buyer); return; }
+      }
+    } catch (_) {}
+    // Data tidak valid — hapus dan tampilkan login
+    localStorage.removeItem(LS_KEY_CURRENT_BUYER);
   }
 
   // Login via URL ?code=xxx
@@ -256,9 +261,8 @@ function checkAccessFromURL() {
     return;
   }
 
-  // Default: tampilkan halaman login, semua konten tersembunyi
-  const modal = document.getElementById('accessModal');
-  if (modal) modal.style.display = 'flex';
+  // Default: tampilkan halaman login
+  showLogin();
 }
 
 function toggleAdminPanel() {
