@@ -473,8 +473,7 @@ function setContractText(text, fileName) {
 
 /* ══ API ═════════════════════════════════════════════════════ */
 function getApiKeys() {
-  const raw = document.getElementById('apiKeyInput')?.value || '';
-  return raw.split('\n').map(k => k.trim()).filter(k => k.length > 0);
+  return getEngineKeys();
 }
 
 async function tryRequest(apiKey, model, contract, signal) {
@@ -506,8 +505,9 @@ async function tryRequest(apiKey, model, contract, signal) {
 async function raceAllRequests(apiKeys, contract) {
   const controllers = [];
   const promises    = [];
+  const activeModels = getEngineModels();
   for (const apiKey of apiKeys) {
-    for (const model of SMART_MODELS) {
+    for (const model of activeModels) {
       const ctrl = new AbortController();
       controllers.push(ctrl);
       promises.push(
@@ -1098,6 +1098,254 @@ if (typeof window !== 'undefined') {
   };
 }
 
+
+/* ══ ENGINE PANEL ════════════════════════════════════════════ */
+const LS_KEY_ENGINE_KEYS   = 'legalguard_api_keys';
+const LS_KEY_ENGINE_MODELS = 'legalguard_models';
+
+const DEFAULT_MODELS = [
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'arcee-ai/trinity-large-preview:free',
+  'z-ai/glm-4.5-air:free',
+  'openai/gpt-oss-120b:free',
+  'nvidia/nemotron-3-nano-30b-a3b:free',
+  'minimax/minimax-m2.5:free',
+  'google/gemma-4-31b-it:free',
+  'qwen/qwen3-coder:free',
+  'openrouter/auto'
+];
+
+function getEngineKeys() {
+  // Prioritas: panel baru → textarea lama
+  try {
+    const raw = localStorage.getItem(LS_KEY_ENGINE_KEYS);
+    if (raw) {
+      const keys = JSON.parse(raw).filter(k => k.trim());
+      if (keys.length > 0) return keys;
+    }
+  } catch (_) {}
+  // Fallback ke textarea lama
+  const ta = document.getElementById('apiKeyInput');
+  if (ta) return ta.value.split('\n').map(k => k.trim()).filter(k => k);
+  return [];
+}
+
+function getEngineModels() {
+  try {
+    const raw = localStorage.getItem(LS_KEY_ENGINE_MODELS);
+    if (raw) {
+      const models = JSON.parse(raw).filter(m => m.active).map(m => m.id);
+      if (models.length > 0) return models;
+    }
+  } catch (_) {}
+  return DEFAULT_MODELS;
+}
+
+function toggleEnginePanel() {
+  const panel = document.getElementById('enginePanel');
+  if (!panel) return;
+  if (!panel.classList.contains('hidden')) {
+    panel.classList.add('hidden');
+    return;
+  }
+  renderEnginePanel();
+  panel.classList.remove('hidden');
+}
+
+function closeEnginePanel() {
+  const panel = document.getElementById('enginePanel');
+  if (panel) panel.classList.add('hidden');
+}
+
+function renderEnginePanel() {
+  renderApiKeyList();
+  renderModelList();
+}
+
+function renderApiKeyList() {
+  const container = document.getElementById('apiKeyList');
+  if (!container) return;
+  let keys = [];
+  try {
+    const raw = localStorage.getItem(LS_KEY_ENGINE_KEYS);
+    keys = raw ? JSON.parse(raw) : [];
+  } catch (_) { keys = []; }
+
+  if (keys.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-4 rounded-xl text-xs" style="color:var(--text-dim);border:0.5px dashed rgba(201,168,76,0.2)">
+        Belum ada API key. Klik <strong style="color:var(--gold)">+ Tambah</strong> untuk menambahkan.
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = keys.map((k, i) => `
+    <div class="flex items-center gap-2">
+      <div class="relative flex-1">
+        <input
+          type="password"
+          value="${escapeHtml(k)}"
+          id="apikey_${i}"
+          class="admin-input w-full px-3 py-2 text-xs font-mono-custom pr-8"
+          placeholder="sk-or-..."
+          style="font-family:'JetBrains Mono',monospace;letter-spacing:0.05em"
+        />
+        <button onclick="toggleKeyVisibility('apikey_${i}')" class="absolute right-2 top-2 btn-ghost p-0.5">
+          <i data-lucide="eye" class="w-3 h-3"></i>
+        </button>
+      </div>
+      <button onclick="removeApiKey(${i})" class="btn-ghost danger p-1.5 flex-shrink-0">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>`).join('');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function renderModelList() {
+  const container = document.getElementById('modelList');
+  if (!container) return;
+  let models = [];
+  try {
+    const raw = localStorage.getItem(LS_KEY_ENGINE_MODELS);
+    models = raw ? JSON.parse(raw) : DEFAULT_MODELS.map(id => ({ id, active: true }));
+  } catch (_) {
+    models = DEFAULT_MODELS.map(id => ({ id, active: true }));
+  }
+
+  container.innerHTML = models.map((m, i) => `
+    <div class="flex items-center gap-2 p-2 rounded-lg" style="background:var(--bg-inner);border:0.5px solid var(--border)">
+      <input
+        type="checkbox"
+        id="model_${i}"
+        ${m.active ? 'checked' : ''}
+        onchange="toggleModel(${i})"
+        style="accent-color:var(--gold);width:14px;height:14px;flex-shrink:0"
+      />
+      <input
+        type="text"
+        value="${escapeHtml(m.id)}"
+        id="modelid_${i}"
+        class="flex-1 bg-transparent text-xs outline-none font-mono-custom"
+        style="color:${m.active ? 'var(--text-muted)' : 'var(--text-dim)'};font-family:'JetBrains Mono',monospace;min-width:0"
+        onchange="updateModelId(${i}, this.value)"
+      />
+      <button onclick="removeModel(${i})" class="btn-ghost danger p-0.5 flex-shrink-0">
+        <i data-lucide="x" class="w-3 h-3"></i>
+      </button>
+    </div>`).join('');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function addApiKeyRow() {
+  let keys = [];
+  try {
+    const raw = localStorage.getItem(LS_KEY_ENGINE_KEYS);
+    keys = raw ? JSON.parse(raw) : [];
+  } catch (_) { keys = []; }
+  keys.push('');
+  localStorage.setItem(LS_KEY_ENGINE_KEYS, JSON.stringify(keys));
+  renderApiKeyList();
+  // Focus ke input baru
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('[id^="apikey_"]');
+    if (inputs.length > 0) inputs[inputs.length - 1].focus();
+  }, 50);
+}
+
+function removeApiKey(idx) {
+  let keys = [];
+  try {
+    const raw = localStorage.getItem(LS_KEY_ENGINE_KEYS);
+    keys = raw ? JSON.parse(raw) : [];
+  } catch (_) { keys = []; }
+  keys.splice(idx, 1);
+  localStorage.setItem(LS_KEY_ENGINE_KEYS, JSON.stringify(keys));
+  renderApiKeyList();
+}
+
+function addModelRow() {
+  let models = [];
+  try {
+    const raw = localStorage.getItem(LS_KEY_ENGINE_MODELS);
+    models = raw ? JSON.parse(raw) : DEFAULT_MODELS.map(id => ({ id, active: true }));
+  } catch (_) { models = DEFAULT_MODELS.map(id => ({ id, active: true })); }
+  models.push({ id: '', active: true });
+  localStorage.setItem(LS_KEY_ENGINE_MODELS, JSON.stringify(models));
+  renderModelList();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('[id^="modelid_"]');
+    if (inputs.length > 0) inputs[inputs.length - 1].focus();
+  }, 50);
+}
+
+function removeModel(idx) {
+  let models = getStoredModels();
+  models.splice(idx, 1);
+  localStorage.setItem(LS_KEY_ENGINE_MODELS, JSON.stringify(models));
+  renderModelList();
+}
+
+function toggleModel(idx) {
+  let models = getStoredModels();
+  if (models[idx]) models[idx].active = !models[idx].active;
+  localStorage.setItem(LS_KEY_ENGINE_MODELS, JSON.stringify(models));
+  renderModelList();
+}
+
+function updateModelId(idx, val) {
+  let models = getStoredModels();
+  if (models[idx]) models[idx].id = val.trim();
+  localStorage.setItem(LS_KEY_ENGINE_MODELS, JSON.stringify(models));
+}
+
+function getStoredModels() {
+  try {
+    const raw = localStorage.getItem(LS_KEY_ENGINE_MODELS);
+    return raw ? JSON.parse(raw) : DEFAULT_MODELS.map(id => ({ id, active: true }));
+  } catch (_) {
+    return DEFAULT_MODELS.map(id => ({ id, active: true }));
+  }
+}
+
+function toggleKeyVisibility(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+function saveEngineConfig() {
+  // Kumpulkan semua nilai API key dari input
+  const keyInputs = document.querySelectorAll('[id^="apikey_"]');
+  const keys = Array.from(keyInputs).map(el => el.value.trim()).filter(k => k);
+  localStorage.setItem(LS_KEY_ENGINE_KEYS, JSON.stringify(keys));
+
+  // Kumpulkan semua model
+  const modelInputs = document.querySelectorAll('[id^="modelid_"]');
+  const checkboxes  = document.querySelectorAll('[id^="model_"]');
+  const models = Array.from(modelInputs).map((el, i) => ({
+    id: el.value.trim(),
+    active: checkboxes[i] ? checkboxes[i].checked : true
+  })).filter(m => m.id);
+  localStorage.setItem(LS_KEY_ENGINE_MODELS, JSON.stringify(models));
+
+  // Update badge status di navbar
+  updateEngineBadge();
+  closeEnginePanel();
+  showToast('Konfigurasi engine disimpan!', 'success');
+}
+
+function updateEngineBadge() {
+  const keys = getEngineKeys();
+  const badge = document.getElementById('engineStatusBadge');
+  if (badge) {
+    if (keys.length > 0) {
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+}
+
 /* ══ GLOBAL EXPORTS ══════════════════════════════════════════ */
 window.analyzeContract       = analyzeContract;
 window.scrollToApp           = scrollToApp;
@@ -1122,3 +1370,13 @@ window.closeAdminPanel       = closeAdminPanel;
 window.verifyAccessCode      = verifyAccessCode;
 window.handleFileUpload      = handleFileUpload;
 window.processUploadedFile   = processUploadedFile;
+window.toggleEnginePanel     = toggleEnginePanel;
+window.closeEnginePanel      = closeEnginePanel;
+window.addApiKeyRow          = addApiKeyRow;
+window.removeApiKey          = removeApiKey;
+window.addModelRow           = addModelRow;
+window.removeModel           = removeModel;
+window.toggleModel           = toggleModel;
+window.updateModelId         = updateModelId;
+window.toggleKeyVisibility   = toggleKeyVisibility;
+window.saveEngineConfig      = saveEngineConfig;
