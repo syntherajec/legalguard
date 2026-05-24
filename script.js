@@ -277,12 +277,19 @@ function checkAccessFromURL() {
 function toggleAdminPanel() {
   const panel = document.getElementById('adminPanel');
   if (!panel) return;
-  if (panel.classList.contains('hidden')) {
-    panel.classList.remove('hidden');
-    renderAdminBuyersList();
-  } else {
+  if (!panel.classList.contains('hidden')) {
     panel.classList.add('hidden');
+    return;
   }
+  const pwd = prompt('Masukkan password admin:');
+  if (!pwd) return;
+  const adminPwd = localStorage.getItem('legalguard_admin_pwd') || 'LGADMIN2026';
+  if (pwd !== adminPwd) {
+    showToast('Password admin salah!', 'error');
+    return;
+  }
+  panel.classList.remove('hidden');
+  renderAdminBuyersList();
 }
 
 function closeAdminPanel() {
