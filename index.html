@@ -133,6 +133,48 @@
         </div>
       </div>
     </div>
+
+  <!-- ══ ENGINE PANEL (API Key + Model) ════════════════════ -->
+  <div id="enginePanel" class="hidden fixed inset-0 z-[250] flex items-center justify-center p-4" style="background:rgba(12,12,16,0.92);backdrop-filter:blur(16px)">
+    <div class="w-full max-w-lg">
+      <div class="modal-box p-6">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center gap-3">
+            <div class="logo-shield"><i data-lucide="key" class="w-3.5 h-3.5" style="color:var(--gold)"></i></div>
+            <h3 class="font-display text-xl font-semibold" style="color:var(--platinum)">Konfigurasi Engine</h3>
+          </div>
+          <button onclick="closeEnginePanel()" class="btn-ghost p-1.5"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+
+        <!-- API Keys -->
+        <div class="mb-5">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-medium tracking-widest" style="color:var(--text-muted);letter-spacing:0.1em">API KEYS</span>
+            <button onclick="addApiKeyRow()" class="btn-gold-outline py-1 px-3 text-xs"><i data-lucide="plus" class="w-3 h-3"></i> Tambah</button>
+          </div>
+          <div id="apiKeyList" class="space-y-2"></div>
+        </div>
+
+        <div class="breakdown-bar-bg mb-5"></div>
+
+        <!-- Models -->
+        <div class="mb-6">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-medium tracking-widest" style="color:var(--text-muted);letter-spacing:0.1em">MODEL AKTIF</span>
+            <button onclick="addModelRow()" class="btn-gold-outline py-1 px-3 text-xs"><i data-lucide="plus" class="w-3 h-3"></i> Tambah</button>
+          </div>
+          <div id="modelList" class="space-y-2 max-h-52 overflow-y-auto pr-1"></div>
+        </div>
+
+        <!-- Save -->
+        <button onclick="saveEngineConfig()" class="btn-primary w-full py-3 text-sm">
+          <i data-lucide="save" class="w-4 h-4"></i> Simpan Konfigurasi
+        </button>
+
+      </div>
+    </div>
   </div>
 
   <!-- ══ NAVBAR (hidden sampai login) ══════════════════════ -->
@@ -151,6 +193,9 @@
         <div class="status-badge hidden sm:inline-flex">
           <span class="status-dot"></span> Sistem Aktif
         </div>
+        <button onclick="toggleEnginePanel()" class="btn-ghost p-1.5" style="opacity:0.55" title="Konfigurasi Engine">
+          <i data-lucide="key" class="w-4 h-4" style="color:var(--gold)"></i>
+        </button>
         <button onclick="toggleAdminPanel()" class="btn-ghost p-1.5" style="opacity:0.35" title="Admin">
           <i data-lucide="settings" class="w-4 h-4"></i>
         </button>
@@ -218,36 +263,11 @@
         <div class="section-divider-line"></div>
       </div>
 
-      <!-- Konfigurasi engine (API key tersembunyi dari publik) -->
+      <!-- Input tersembunyi untuk kompatibilitas -->
       <input type="hidden" id="modelInput" value="">
-      <div class="card-premium p-5 mb-5">
-        <div class="flex flex-wrap items-center gap-2 mb-3">
-          <i data-lucide="cpu" class="w-3.5 h-3.5" style="color:var(--gold)"></i>
-          <span class="text-xs font-medium" style="color:var(--text-muted)">Konfigurasi Engine</span>
-          <span id="keySavedBadge" class="hidden badge badge-emerald ml-auto">
-            <i data-lucide="check" class="w-2.5 h-2.5 inline mr-1"></i>Terkonfigurasi
-          </span>
-        </div>
-        <div class="relative">
-          <textarea
-            id="apiKeyInput"
-            rows="2"
-            placeholder="Masukkan konfigurasi engine (1 per baris)..."
-            class="input-premium w-full px-4 py-2.5 text-xs resize-none leading-relaxed"
-            style="-webkit-text-security:disc;text-security:disc;font-family:'JetBrains Mono',monospace"
-            oninput="onApiKeyInput()"
-          ></textarea>
-          <button onclick="toggleApiKeyVisibility()" class="absolute right-3 top-2.5 btn-ghost">
-            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
-          </button>
-        </div>
-        <div class="flex items-center justify-between mt-2">
-          <p class="text-[10px]" style="color:var(--text-dim)">Konfigurasi disimpan lokal. Sistem otomatis memilih engine terbaik.</p>
-          <button id="clearApiKeyBtn" onclick="clearApiKey()" class="hidden btn-ghost danger text-[10px] ml-3">
-            <i data-lucide="trash-2" class="w-3 h-3"></i> Hapus
-          </button>
-        </div>
-      </div>
+      <textarea id="apiKeyInput" class="hidden"></textarea>
+      <span id="keySavedBadge" class="hidden"></span>
+      <button id="clearApiKeyBtn" class="hidden"></button>
 
       <!-- Input Kontrak -->
       <div class="card-premium p-5 mb-5">
