@@ -19,10 +19,7 @@
   <link rel="stylesheet" href="style.css" />
 
   <style>
-    /* Sembunyikan konten sebelum JS berjalan - tanpa !important agar JS bisa override */
-    #mainNav, #hero, #app, #loadingSection, #resultsSection, #mainFooter {
-      display: none;
-    }
+    .lg-hidden { display: none !important; }
   </style>
 </head>
 
@@ -178,7 +175,7 @@
   </div>
 
   <!-- ══ NAVBAR (hidden sampai login) ══════════════════════ -->
-  <nav id="mainNav" class="hidden fixed top-0 left-0 right-0 z-[100] navbar-glass">
+  <nav id="mainNav" class="lg-hidden class="hidden fixed top-0 left-0 right-0 z-[100] navbar-glass">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div class="logo-shield">
@@ -204,7 +201,7 @@
   </nav>
 
   <!-- ══ HERO ══════════════════════════════════════════════ -->
-  <section id="hero" class="min-h-screen relative z-10 flex flex-col items-center justify-center px-4 sm:px-6 pt-24 pb-16">
+  <section id="hero" class="lg-hidden class="min-h-screen relative z-10 flex flex-col items-center justify-center px-4 sm:px-6 pt-24 pb-16">
     <div class="max-w-4xl mx-auto text-center">
 
       <div class="inline-flex items-center gap-3 premium-badge mb-8">
@@ -254,7 +251,7 @@
   </section>
 
   <!-- ══ APP — INPUT ════════════════════════════════════════ -->
-  <section id="app" class="py-16 sm:py-20 px-4 sm:px-6 relative z-10">
+  <section id="app" class="lg-hidden class="py-16 sm:py-20 px-4 sm:px-6 relative z-10">
     <div class="max-w-3xl mx-auto">
 
       <div class="section-divider mb-10">
@@ -329,7 +326,7 @@
   </section>
 
   <!-- ══ LOADING ════════════════════════════════════════════ -->
-  <section id="loadingSection" class="hidden py-16 sm:py-20 px-4 sm:px-6 relative z-10">
+  <section id="loadingSection" class="lg-hidden class="hidden py-16 sm:py-20 px-4 sm:px-6 relative z-10">
     <div class="max-w-xl mx-auto">
       <div class="card-premium p-8 sm:p-10">
 
@@ -388,7 +385,7 @@
   </section>
 
   <!-- ══ RESULTS ════════════════════════════════════════════ -->
-  <section id="resultsSection" class="hidden py-14 px-4 sm:px-6 relative z-10">
+  <section id="resultsSection" class="lg-hidden class="hidden py-14 px-4 sm:px-6 relative z-10">
     <div class="max-w-6xl mx-auto">
 
       <!-- Personal banner -->
@@ -580,7 +577,7 @@
   </section>
 
   <!-- ══ FOOTER ═════════════════════════════════════════════ -->
-  <footer id="mainFooter" class="hidden py-8 px-4 sm:px-6 text-center" style="border-top:0.5px solid var(--border)">
+  <footer id="mainFooter" class="lg-hidden class="hidden py-8 px-4 sm:px-6 text-center" style="border-top:0.5px solid var(--border)">
     <div class="max-w-4xl mx-auto">
       <div class="flex items-center justify-center gap-2 mb-3">
         <div class="logo-shield w-6 h-6 rounded">
