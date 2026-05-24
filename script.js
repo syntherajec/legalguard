@@ -192,17 +192,17 @@ function showLogin() {
 function showApp(buyer) {
   currentBuyer = buyer;
   const modal = document.getElementById('accessModal');
-  if (modal) modal.style.display = 'none';
+  if (modal) modal.style.cssText = 'display:none!important';
 
   const showIds = { mainNav:'block', hero:'flex', app:'block', mainFooter:'block' };
   Object.entries(showIds).forEach(([id, disp]) => {
     const el = document.getElementById(id);
-    if (el) { el.style.display = disp; el.classList.remove('hidden'); }
+    if (el) { el.style.cssText = 'display:' + disp + '!important'; el.classList.remove('hidden'); }
   });
 
   ['loadingSection','resultsSection'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) { el.style.display = 'none'; el.classList.add('hidden'); }
+    if (el) { el.style.cssText = 'display:none!important'; el.classList.add('hidden'); }
   });
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
