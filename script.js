@@ -181,30 +181,29 @@ function exportAllData() {
 // Sembunyikan semua konten, pastikan login tampil
 function showLogin() {
   const modal = document.getElementById('accessModal');
-  if (modal) { modal.style.cssText = 'display:flex!important'; }
+  if (modal) { modal.style.cssText = ''; modal.classList.remove('lg-hidden'); }
   ['mainNav','hero','app','loadingSection','resultsSection','mainFooter'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.style.cssText = 'display:none!important';
+    if (el) { el.style.cssText = ''; el.classList.add('lg-hidden'); }
   });
 }
 
 // Tampilkan semua konten, sembunyikan login
 function showApp(buyer) {
   currentBuyer = buyer;
+  // Sembunyikan login
   const modal = document.getElementById('accessModal');
-  if (modal) modal.style.cssText = 'display:none!important';
-
-  const showIds = { mainNav:'block', hero:'flex', app:'block', mainFooter:'block' };
-  Object.entries(showIds).forEach(([id, disp]) => {
+  if (modal) { modal.style.cssText = ''; modal.classList.add('lg-hidden'); }
+  // Tampilkan elemen utama
+  ['mainNav','hero','app','mainFooter'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) { el.style.cssText = 'display:' + disp + '!important'; el.classList.remove('hidden'); }
+    if (el) { el.style.cssText = ''; el.classList.remove('lg-hidden'); }
   });
-
+  // Pastikan loading & results tersembunyi
   ['loadingSection','resultsSection'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) { el.style.cssText = 'display:none!important'; el.classList.add('hidden'); }
+    if (el) { el.style.cssText = ''; el.classList.add('lg-hidden'); }
   });
-
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -358,9 +357,9 @@ function resetApp() {
   const app             = document.getElementById('app');
   const contractInput   = document.getElementById('contractInput');
   const uploadStatus    = document.getElementById('uploadStatus');
-  if (resultsSection) resultsSection.classList.add('hidden');
-  if (loadingSection) loadingSection.classList.add('hidden');
-  if (app)            app.classList.remove('hidden');
+  if (resultsSection) resultsSection.classList.add('lg-hidden');
+  if (loadingSection) loadingSection.classList.add('lg-hidden');
+  if (app)            app.classList.remove('lg-hidden');
   if (contractInput)  contractInput.value = '';
   if (uploadStatus)   uploadStatus.classList.add('hidden');
   updateCharCount();
@@ -662,9 +661,9 @@ async function analyzeContract() {
   const app            = document.getElementById('app');
   const resultsSection = document.getElementById('resultsSection');
   const loadingSection = document.getElementById('loadingSection');
-  if (app)            app.classList.add('hidden');
-  if (resultsSection) resultsSection.classList.add('hidden');
-  if (loadingSection) loadingSection.classList.remove('hidden');
+  if (app)            app.classList.add('lg-hidden');
+  if (resultsSection) resultsSection.classList.add('lg-hidden');
+  if (loadingSection) loadingSection.classList.remove('lg-hidden');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
   const progress = runProgressSimulation();
@@ -675,13 +674,13 @@ async function analyzeContract() {
     await sleep(600);
     auditResults = result;
     renderResults(result);
-    if (loadingSection) loadingSection.classList.add('hidden');
-    if (resultsSection) resultsSection.classList.remove('hidden');
+    if (loadingSection) loadingSection.classList.add('lg-hidden');
+    if (resultsSection) resultsSection.classList.remove('lg-hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (err) {
     progress.stop();
-    if (loadingSection) loadingSection.classList.add('hidden');
-    if (app)            app.classList.remove('hidden');
+    if (loadingSection) loadingSection.classList.add('lg-hidden');
+    if (app)            app.classList.remove('lg-hidden');
     showToast('Error: ' + (err.message || 'Gagal menghubungi engine.'), 'error');
     console.error(err);
   }
